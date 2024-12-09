@@ -1,0 +1,4 @@
+pumukit_blackboard:
+    resource: "@PumukitBlackboardBundle/Controller/"
+    type:     annotation
+    prefix:   /

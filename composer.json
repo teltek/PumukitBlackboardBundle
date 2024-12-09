@@ -1,0 +1,29 @@
+{
+    "name": "teltek/pumukit-blackboard-bundle",
+    "type": "symfony-bundle",
+    "description": "PuMuKIT blackboard import API",
+    "keywords": [
+        "api",
+        "symfony",
+        "bundle",
+        "pumukit"
+    ],
+    "homepage": "https://github.com/teltek/PumukitBlackboardBundle.git",
+    "license": "proprietary",
+    "authors": [
+        {
+            "name": "Teltek Team",
+            "homepage": "https://teltek.es"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "pumukit/pumukit": "^5.0",
+        "symfony/http-client": "^5.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Pumukit\\BlackboardBundle\\": ""
+        }
+    }
+}

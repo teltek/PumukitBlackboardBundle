@@ -1,0 +1,41 @@
+services:
+  _defaults:
+    autowire:      true
+    autoconfigure: true
+    public:        true
+
+  Pumukit\BlackboardBundle\Controller\:
+    resource: '../../Controller/'
+    tags: ['controller.service_arguments']
+
+  Pumukit\BlackboardBundle\Command\:
+    resource: '../../Command'
+    tags: ['console.command']
+
+  Pumukit\BlackboardBundle\Services\LearnAPIConfiguration:
+    class: Pumukit\BlackboardBundle\Services\LearnAPIConfiguration
+    arguments:
+      $host: '%pumukit_blackboard.learn_host%'
+      $key: '%pumukit_blackboard.learn_key%'
+      $secret: '%pumukit_blackboard.learn_secret%'
+
+  Pumukit\BlackboardBundle\Services\LearnAPIAuth:
+    class: Pumukit\BlackboardBundle\Services\LearnAPIAuth
+
+  Pumukit\BlackboardBundle\Services\LearnAPICourse:
+    class: Pumukit\BlackboardBundle\Services\LearnAPICourse
+
+  Pumukit\BlackboardBundle\Services\CollaborateAPIConfiguration:
+    class: Pumukit\BlackboardBundle\Services\CollaborateAPIConfiguration
+    arguments:
+      $host: '%pumukit_blackboard.collaborate_host%'
+      $key: '%pumukit_blackboard.collaborate_key%'
+      $secret: '%pumukit_blackboard.collaborate_secret%'
+
+  Pumukit\BlackboardBundle\Services\CollaborateAPIAuth:
+    class: Pumukit\BlackboardBundle\Services\CollaborateAPIAuth
+
+  Pumukit\BlackboardBundle\Services\CollaborateAPIRecordings:
+    class: Pumukit\BlackboardBundle\Services\CollaborateAPIRecordings
+
+
