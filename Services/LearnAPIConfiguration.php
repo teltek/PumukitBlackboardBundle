@@ -4,10 +4,10 @@ namespace Pumukit\BlackboardBundle\Services;
 
 class LearnAPIConfiguration
 {
+    private const API_BASE_PATH = '/learn/api/public';
     private string $host;
     private string $key;
     private string $secret;
-    private CONST API_BASE_PATH = '/learn/api/public';
 
     public function __construct(string $host, string $key, string $secret)
     {
@@ -33,17 +33,16 @@ class LearnAPIConfiguration
 
     public function apiUrl(): string
     {
-        return $this->host() . self::API_BASE_PATH;
+        return $this->host().self::API_BASE_PATH;
     }
 
     public function apiTokenUrl(): string
     {
-        return $this->host() . self::API_BASE_PATH . '/v1/oauth2/token';
+        return $this->host().self::API_BASE_PATH.'/v1/oauth2/token';
     }
 
     public function apiCourseListUrl(): string
     {
-        return $this->host() . self::API_BASE_PATH . '/v3/courses';
+        return $this->host().self::API_BASE_PATH.'/v3/courses';
     }
-
 }

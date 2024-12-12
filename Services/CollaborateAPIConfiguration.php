@@ -4,10 +4,10 @@ namespace Pumukit\BlackboardBundle\Services;
 
 class CollaborateAPIConfiguration
 {
+    private const API_BASE_PATH = '';
     private string $host;
     private string $key;
     private string $secret;
-    private CONST API_BASE_PATH = '/collab/api/csa';
 
     public function __construct(string $host, string $key, string $secret)
     {
@@ -33,16 +33,16 @@ class CollaborateAPIConfiguration
 
     public function apiUrl(): string
     {
-        return $this->host() . self::API_BASE_PATH;
+        return $this->host().self::API_BASE_PATH;
     }
 
     public function apiTokenUrl(): string
     {
-        return $this->host() . self::API_BASE_PATH . '/webtoken';
+        return $this->host().self::API_BASE_PATH.'/token';
     }
 
     public function apiRecordingUrl(): string
     {
-        return $this->host() . self::API_BASE_PATH . '/recordings';
+        return $this->host().self::API_BASE_PATH.'/recordings';
     }
 }

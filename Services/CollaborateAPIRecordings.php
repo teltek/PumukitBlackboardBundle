@@ -16,12 +16,19 @@ class CollaborateAPIRecordings
         $this->configuration = $configuration;
     }
 
+    public function getCourseRecordings(string $accessToken, string $courseId): array
+    {
+        $recordingsResponse = $this->recordings($accessToken, $courseId);
+
+        return json_decode($recordingsResponse, true);
+    }
+
     private function recordings(string $accessToken, string $courseId): string
     {
         try {
             $response = $this->client->request('GET', $this->configuration->apiRecordingUrl(), [
                 'headers' => [
-                    'Authorization' => 'Bearer ' . $accessToken,
+                    'Authorization' => 'Bearer '.$accessToken,
                     'Accept' => 'application/json',
                 ],
                 'query' => [
@@ -29,21 +36,13 @@ class CollaborateAPIRecordings
                 ],
             ]);
 
-            if($response->getStatusCode() !== Response::HTTP_OK) {
+            if (Response::HTTP_OK !== $response->getStatusCode()) {
                 throw new \Exception('Unable to get courses. Response status code: '.$response->getStatusCode());
             }
 
             return $response->getContent();
-
         } catch (\Exception $exception) {
             throw new \Exception($exception->getMessage());
         }
-    }
-
-    public function getCourseRecordings(string $accessToken, string $courseId): array
-    {
-        $recordingsResponse = $this->recordings($accessToken, $courseId);
-
-        return json_decode($recordingsResponse, true);
     }
 }

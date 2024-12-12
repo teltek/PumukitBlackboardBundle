@@ -16,27 +16,6 @@ class LearnAPICourse
         $this->configuration = $configuration;
     }
 
-    private function listCourses(string $accessToken): string
-    {
-        try {
-            $response = $this->client->request('GET', $this->configuration->apiCourseListUrl(), [
-                'headers' => [
-                    'Authorization' => 'Bearer ' . $accessToken,
-                    'Accept' => 'application/json',
-                ],
-            ]);
-
-            if($response->getStatusCode() !== Response::HTTP_OK) {
-                throw new \Exception('Unable to get courses. Response status code: '.$response->getStatusCode());
-            }
-
-            return $response->getContent();
-
-        } catch (\Exception $exception) {
-            throw new \Exception($exception->getMessage());
-        }
-    }
-
     public function getIdsFromCourses(string $accessToken): array
     {
         $coursesResponse = $this->listCourses($accessToken);
@@ -48,5 +27,25 @@ class LearnAPICourse
         }
 
         return $courseIds;
+    }
+
+    private function listCourses(string $accessToken): string
+    {
+        try {
+            $response = $this->client->request('GET', $this->configuration->apiCourseListUrl(), [
+                'headers' => [
+                    'Authorization' => 'Bearer '.$accessToken,
+                    'Accept' => 'application/json',
+                ],
+            ]);
+
+            if (Response::HTTP_OK !== $response->getStatusCode()) {
+                throw new \Exception('Unable to get courses. Response status code: '.$response->getStatusCode());
+            }
+
+            return $response->getContent();
+        } catch (\Exception $exception) {
+            throw new \Exception($exception->getMessage());
+        }
     }
 }

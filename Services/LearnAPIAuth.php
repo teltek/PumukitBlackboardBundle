@@ -29,14 +29,13 @@ class LearnAPIAuth
                 ],
             ]);
 
-            if($response->getStatusCode() !== Response::HTTP_OK) {
+            if (Response::HTTP_OK !== $response->getStatusCode()) {
                 throw new \Exception('Unable to get learn token. Response status code: '.$response->getStatusCode());
             }
 
             $token = json_decode($response->getContent(), true);
 
             return $token['access_token'];
-
         } catch (\Exception $exception) {
             throw new \Exception($exception->getMessage());
         }

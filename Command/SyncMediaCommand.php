@@ -23,8 +23,7 @@ class SyncMediaCommand extends Command
         CollaborateAPIAuth $collaborateAPIAuth,
         CollaborateAPIRecordings $collaborateAPIRecordings,
         string $name = null
-    )
-    {
+    ) {
         $this->learnAPIAuth = $learnAPIAuth;
         $this->learnAPICourse = $learnAPICourse;
         $this->collaborateAPIAuth = $collaborateAPIAuth;
