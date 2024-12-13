@@ -5,7 +5,7 @@ namespace Pumukit\BlackboardBundle\Services;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
-class CollaborateAPIRecordings
+class CollaborateAPICourseRecordings
 {
     private HttpClientInterface $client;
     private CollaborateAPIConfiguration $configuration;
@@ -32,12 +32,13 @@ class CollaborateAPIRecordings
                     'Accept' => 'application/json',
                 ],
                 'query' => [
-                    'externalCourseId' => $courseId,
+//                    'contextId' => $courseId,
+                    'contextExtId' => $courseId,
                 ],
             ]);
 
             if (Response::HTTP_OK !== $response->getStatusCode()) {
-                throw new \Exception('Unable to get courses. Response status code: '.$response->getStatusCode());
+                throw new \Exception('Unable to get course recordings. Response status code: '.$response->getStatusCode());
             }
 
             return $response->getContent();

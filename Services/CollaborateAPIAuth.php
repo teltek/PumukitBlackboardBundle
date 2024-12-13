@@ -27,11 +27,8 @@ class CollaborateAPIAuth
     {
         try {
             $response = $this->client->request('POST', $this->configuration->apiTokenUrl(), [
-                'headers' => [
-                    'Authorization' => 'Bearer '.$this->assertion,
-                    'Content-Type' => 'application/json',
-                ],
-                'json' => $this->payload,
+                'auth_basic' => [$this->configuration->key(), $this->configuration->secret()],
+                'body' => $this->payload,
                 'verify_peer' => $this->verify_cert,
             ]);
 
@@ -57,11 +54,11 @@ class CollaborateAPIAuth
         ];
 
         $this->header = [
-            'alg' => 'RS256',
+            'alg' => 'HS256',
             'typ' => 'JWT',
         ];
 
-        $this->assertion = JWT::encode($claims, $this->configuration->secret(), 'RS256');
+        $this->assertion = JWT::encode($claims, $this->configuration->secret(), 'HS256');
         $this->grant_type = 'urn:ietf:params:oauth:grant-type:jwt-bearer';
 
         $this->payload = [
