@@ -38,7 +38,7 @@ class CollaborateAPIRecording
             'headers' => [
                 'Authorization' => 'Bearer '.$accessToken,
                 'Accept' => 'application/json',
-                'Content-Type' => 'application/json'
+                'Content-Type' => 'application/json',
             ],
             'verify_peer' => true,
         ]);

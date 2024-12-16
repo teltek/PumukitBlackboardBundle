@@ -32,7 +32,6 @@ class CollaborateAPICourseRecordings
                     'Accept' => 'application/json',
                 ],
                 'query' => [
-//                    'contextId' => $courseId,
                     'contextExtId' => $courseId,
                 ],
             ]);

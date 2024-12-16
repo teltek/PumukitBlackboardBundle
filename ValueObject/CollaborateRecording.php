@@ -8,7 +8,6 @@ final class CollaborateRecording
     private string $courseUUID;
     private string $downloadUrl;
     private string $sessionName;
-    private string $user;
 
     private function __construct(string $id, string $courseUUID, string $downloadUrl, string $sessionName)
     {
@@ -21,11 +20,6 @@ final class CollaborateRecording
     public static function create(string $id, string $courseUUID, string $downloadUrl, string $sessionName): CollaborateRecording
     {
         return new self($id, $courseUUID, $downloadUrl, $sessionName);
-    }
-
-    public function addUser(string $user): void
-    {
-        $this->user = $user;
     }
 
     public function id(): string
@@ -46,10 +40,5 @@ final class CollaborateRecording
     public function sessionName(): string
     {
         return $this->sessionName;
-    }
-
-    public function user(): ?string
-    {
-        return $this->user;
     }
 }

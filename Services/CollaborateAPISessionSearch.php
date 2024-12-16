@@ -16,9 +16,9 @@ class CollaborateAPISessionSearch
         $this->configuration = $configuration;
     }
 
-    public function searchBySessionName(string $accessToken, string $sessionName): ?array
+    public function searchSessions(string $accessToken): ?array
     {
-        $sessionResponse = $this->sessionByName($accessToken, $sessionName);
+        $sessionResponse = $this->session($accessToken);
 
         return json_decode($sessionResponse, true);
     }
@@ -30,7 +30,7 @@ class CollaborateAPISessionSearch
         return json_decode($sessionResponse, true);
     }
 
-    private function sessionByName(string $accessToken, string $sessionName): ?string
+    private function session(string $accessToken): ?string
     {
         try {
             $response = $this->client->request('GET', $this->configuration->sessionDataUrl(), [
@@ -38,9 +38,6 @@ class CollaborateAPISessionSearch
                     'Authorization' => 'Bearer '.$accessToken,
                     'Accept' => 'application/json',
                 ],
-//                'query' => [
-//                    'name' => $sessionName,
-//                ],
             ]);
 
             if (Response::HTTP_OK !== $response->getStatusCode()) {
@@ -60,7 +57,7 @@ class CollaborateAPISessionSearch
                 'headers' => [
                     'Authorization' => 'Bearer '.$accessToken,
                     'Accept' => 'application/json',
-                ]
+                ],
             ]);
 
             if (Response::HTTP_OK !== $response->getStatusCode()) {
@@ -72,5 +69,4 @@ class CollaborateAPISessionSearch
             throw new \Exception($exception->getMessage());
         }
     }
-
 }

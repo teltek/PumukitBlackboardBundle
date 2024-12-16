@@ -43,3 +43,6 @@ services:
 
   Pumukit\BlackboardBundle\Services\CollaborateAPISessionSearch:
     class: Pumukit\BlackboardBundle\Services\CollaborateAPISessionSearch
+
+  Pumukit\BlackboardBundle\Services\CollaborateCreateRecording:
+    class: Pumukit\BlackboardBundle\Services\CollaborateCreateRecording

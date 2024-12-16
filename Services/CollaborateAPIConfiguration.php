@@ -60,5 +60,4 @@ class CollaborateAPIConfiguration
     {
         return $this->host().self::API_BASE_PATH.'/sessions';
     }
-
 }
