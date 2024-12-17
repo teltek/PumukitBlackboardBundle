@@ -40,6 +40,16 @@ class CollaborateRecording
      */
     private $imported;
 
+    /**
+     * @MongoDB\Field(type="string")
+     */
+    private $title;
+
+    /**
+     * @MongoDB\Field(type="date")
+     */
+    private $created;
+
     private function __construct(\Pumukit\BlackboardBundle\ValueObject\CollaborateRecording $recording)
     {
         $this->id = new ObjectId();
@@ -47,6 +57,8 @@ class CollaborateRecording
         $this->courseUUID = $recording->courseUUID();
         $this->downloadUrl = $recording->downloadUrl();
         $this->sessionName = $recording->sessionName();
+        $this->title = $recording->title();
+        $this->created = new \DateTime($recording->created());
         $this->imported = false;
     }
 
@@ -84,4 +96,20 @@ class CollaborateRecording
     {
         return $this->imported;
     }
+
+    public function markAsImported(): void
+    {
+        $this->imported = true;
+    }
+
+    public function title(): string
+    {
+        return $this->title;
+    }
+
+    public function created(): \DateTime
+    {
+        return $this->created;
+    }
+
 }

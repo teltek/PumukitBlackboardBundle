@@ -84,6 +84,8 @@ class SyncMediaCommand extends Command
                 }
 
                 $downloadUrl = $recording['mediaDownloadUrl'];
+                $title = $recording['name'];
+                $created = $recording['created'];
 
                 //                TODO: Obtener usuarios moderadores del curso. Crear serie del curso y agregar los moderadores. Autoprovisionar los usuarios.
                 //                TODO: Get info about moderator to assing on PuMuKIT.
@@ -95,10 +97,13 @@ class SyncMediaCommand extends Command
                 //
                 //                $enrollments = $this->collaborateAPISessionSearch->getEnrollmentsBySessionId($collaborateToken, $sessionId);
 
-                $collaborateRecording = CollaborateRecording::create($element['id'], $key, $downloadUrl, $element['sessionName']);
+                $collaborateRecording = CollaborateRecording::create($element['id'], $key, $downloadUrl, $element['sessionName'], $title, $created);
                 $recording = $this->collaborateCreateRecording->create($collaborateRecording);
 
-                $output->writeln('<info>Created new collaborate recording with ID '.$recording->recording().'</info>');
+                if($recording) {
+                    $output->writeln('<info>Created new collaborate recording with ID '.$recording->recording().'</info>');
+                }
+
             }
         }
 

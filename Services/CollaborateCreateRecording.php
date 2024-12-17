@@ -30,7 +30,7 @@ class CollaborateCreateRecording
     private function wasCreated(string $recordingId): bool
     {
         $recording = $this->documentManager->getRepository(\Pumukit\BlackboardBundle\Document\CollaborateRecording::class)->findBy([
-            'recordingId' => $recordingId,
+            'recording' => $recordingId,
         ]);
 
         return (bool) $recording;
