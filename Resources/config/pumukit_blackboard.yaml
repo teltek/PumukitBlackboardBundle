@@ -35,7 +35,14 @@ services:
   Pumukit\BlackboardBundle\Services\CollaborateAPIAuth:
     class: Pumukit\BlackboardBundle\Services\CollaborateAPIAuth
 
-  Pumukit\BlackboardBundle\Services\CollaborateAPIRecordings:
-    class: Pumukit\BlackboardBundle\Services\CollaborateAPIRecordings
+  Pumukit\BlackboardBundle\Services\CollaborateAPICourseRecordings:
+    class: Pumukit\BlackboardBundle\Services\CollaborateAPICourseRecordings
 
+  Pumukit\BlackboardBundle\Services\CollaborateAPIRecording:
+    class: Pumukit\BlackboardBundle\Services\CollaborateAPIRecording
 
+  Pumukit\BlackboardBundle\Services\CollaborateAPISessionSearch:
+    class: Pumukit\BlackboardBundle\Services\CollaborateAPISessionSearch
+
+  Pumukit\BlackboardBundle\Services\CollaborateCreateRecording:
+    class: Pumukit\BlackboardBundle\Services\CollaborateCreateRecording

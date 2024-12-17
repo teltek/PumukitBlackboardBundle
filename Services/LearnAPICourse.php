@@ -23,7 +23,7 @@ class LearnAPICourse
 
         $courseIds = [];
         foreach ($courses['results'] as $course) {
-            $courseIds[] = $course['courseId'];
+            $courseIds[] = $course['uuid'];
         }
 
         return $courseIds;

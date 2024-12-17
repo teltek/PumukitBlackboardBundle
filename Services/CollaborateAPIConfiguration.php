@@ -45,4 +45,19 @@ class CollaborateAPIConfiguration
     {
         return $this->host().self::API_BASE_PATH.'/recordings';
     }
+
+    public function recordingDataUrl(string $recordingId): string
+    {
+        return $this->host().self::API_BASE_PATH.'/recordings/'.$recordingId.'/data';
+    }
+
+    public function recordingInfoUrl(string $recordingId): string
+    {
+        return $this->host().self::API_BASE_PATH.'/recordings/'.$recordingId;
+    }
+
+    public function sessionDataUrl(): string
+    {
+        return $this->host().self::API_BASE_PATH.'/sessions';
+    }
 }
