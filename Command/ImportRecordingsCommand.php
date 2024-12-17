@@ -87,7 +87,7 @@ class ImportRecordingsCommand extends Command
 
         $recordings = $this->getRecordingsToImport();
 
-        foreach($recordings as $recording) {
+        foreach ($recordings as $recording) {
             $pathFile = $this->downloadRecording($recording);
             $series = $this->getSeries();
             $multimediaObject = $this->factoryService->createMultimediaObject($series);
@@ -113,7 +113,7 @@ class ImportRecordingsCommand extends Command
     private function downloadRecording(CollaborateRecording $recording): ?Path
     {
         $response = $this->httpClient->request('GET', $recording->downloadUrl());
-        if ($response->getStatusCode() !== Response::HTTP_OK) {
+        if (Response::HTTP_OK !== $response->getStatusCode()) {
             return null;
         }
 

@@ -100,10 +100,9 @@ class SyncMediaCommand extends Command
                 $collaborateRecording = CollaborateRecording::create($element['id'], $key, $downloadUrl, $element['sessionName'], $title, $created);
                 $recording = $this->collaborateCreateRecording->create($collaborateRecording);
 
-                if($recording) {
+                if ($recording) {
                     $output->writeln('<info>Created new collaborate recording with ID '.$recording->recording().'</info>');
                 }
-
             }
         }
 
