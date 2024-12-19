@@ -28,6 +28,11 @@ class CollaborateRecording
     /**
      * @MongoDB\Field(type="string")
      */
+    private $courseName;
+
+    /**
+     * @MongoDB\Field(type="string")
+     */
     private $downloadUrl;
 
     /**
@@ -50,15 +55,22 @@ class CollaborateRecording
      */
     private $created;
 
+    /**
+     * @MongoDB\Field(type="raw")
+     */
+    private $owners;
+
     private function __construct(\Pumukit\BlackboardBundle\ValueObject\CollaborateRecording $recording)
     {
         $this->id = new ObjectId();
         $this->recording = $recording->id();
         $this->courseUUID = $recording->courseUUID();
+        $this->courseName = $recording->courseName();
         $this->downloadUrl = $recording->downloadUrl();
         $this->sessionName = $recording->sessionName();
         $this->title = $recording->title();
         $this->created = new \DateTime($recording->created());
+        $this->owners = $recording->owners();
         $this->imported = false;
     }
 
@@ -80,6 +92,11 @@ class CollaborateRecording
     public function courseUUID(): string
     {
         return $this->courseUUID;
+    }
+
+    public function courseName(): string
+    {
+        return $this->courseName;
     }
 
     public function downloadUrl(): string
@@ -110,5 +127,10 @@ class CollaborateRecording
     public function created(): \DateTime
     {
         return $this->created;
+    }
+
+    public function owners(): array
+    {
+        return $this->owners;
     }
 }

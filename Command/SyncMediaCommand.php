@@ -6,6 +6,7 @@ use Pumukit\BlackboardBundle\Services\CollaborateAPIAuth;
 use Pumukit\BlackboardBundle\Services\CollaborateAPICourseRecordings;
 use Pumukit\BlackboardBundle\Services\CollaborateAPIRecording;
 use Pumukit\BlackboardBundle\Services\CollaborateAPISessionSearch;
+use Pumukit\BlackboardBundle\Services\CollaborateAPIUser;
 use Pumukit\BlackboardBundle\Services\CollaborateCreateRecording;
 use Pumukit\BlackboardBundle\Services\LearnAPIAuth;
 use Pumukit\BlackboardBundle\Services\LearnAPICourse;
@@ -21,8 +22,9 @@ class SyncMediaCommand extends Command
     private CollaborateAPIAuth $collaborateAPIAuth;
     private CollaborateAPICourseRecordings $collaborateAPICourseRecordings;
     private CollaborateAPIRecording $collaborateAPIRecording;
-    private CollaborateAPISessionSearch $collaborateAPISessionSearch;
     private CollaborateCreateRecording $collaborateCreateRecording;
+    private CollaborateAPISessionSearch $collaborateAPISessionSearch;
+    private CollaborateAPIUser $collaborateAPIUser;
 
     public function __construct(
         LearnAPIAuth $learnAPIAuth,
@@ -30,8 +32,9 @@ class SyncMediaCommand extends Command
         CollaborateAPIAuth $collaborateAPIAuth,
         CollaborateAPICourseRecordings $collaborateAPICourseRecordings,
         CollaborateAPIRecording $collaborateAPIRecording,
-        CollaborateAPISessionSearch $collaborateAPISessionSearch,
         CollaborateCreateRecording $collaborateCreateRecording,
+        CollaborateAPISessionSearch $collaborateAPISessionSearch,
+        CollaborateAPIUser $collaborateAPIUser,
         string $name = null
     ) {
         $this->learnAPIAuth = $learnAPIAuth;
@@ -39,10 +42,11 @@ class SyncMediaCommand extends Command
         $this->collaborateAPIAuth = $collaborateAPIAuth;
         $this->collaborateAPICourseRecordings = $collaborateAPICourseRecordings;
         $this->collaborateAPIRecording = $collaborateAPIRecording;
-        $this->collaborateAPISessionSearch = $collaborateAPISessionSearch;
         $this->collaborateCreateRecording = $collaborateCreateRecording;
+        $this->collaborateAPISessionSearch = $collaborateAPISessionSearch;
 
         parent::__construct($name);
+        $this->collaborateAPIUser = $collaborateAPIUser;
     }
 
     public function configure(): void
@@ -55,18 +59,46 @@ class SyncMediaCommand extends Command
 
     public function execute(InputInterface $input, OutputInterface $output): int
     {
-        $output->writeln('<info>***** Getting learn token to use api *****</info>');
-        $learnToken = $this->learnAPIAuth->getToken();
+        $output->writeln('<info>STEP 1: Connecting to Blackboard Learn API</info>');
 
-        $output->writeln('<info>***** Getting collaborate token to use api *****</info>');
-        $collaborateToken = $this->collaborateAPIAuth->getToken();
+        try {
+            $learnToken = $this->learnAPIAuth->getToken();
+            $output->writeln('DONE');
+        } catch (\Exception $exception) {
+            $output->writeln('<error>ERROR: '.$exception->getMessage().'</error>');
 
-        $output->writeln('<info>***** Getting list of courses *****</info>');
+            return Command::FAILURE;
+        }
+
+        $output->writeln('<info>STEP 2: Connecting to Blackboard Collaborate API</info>');
+
+        try {
+            $collaborateToken = $this->collaborateAPIAuth->getToken();
+            $output->writeln('DONE');
+        } catch (\Exception $exception) {
+            $output->writeln('<error>ERROR: '.$exception->getMessage().'</error>');
+
+            return Command::FAILURE;
+        }
+
+        $output->writeln('<info>STEP 3: Getting list of courses from Blackboard Learn</info>');
         $courses = $this->learnAPICourse->getIdsFromCourses($learnToken);
-        $output->writeln('<info>[COLLABORATE] Courses found '.count($courses).'</info>');
+        $coursesIds = array_keys($courses);
+        $output->writeln('Courses found '.count($courses));
 
+        $output->writeln('<info>STEP 4: Getting course recordings from Blackboard Collaborate</info>');
+        $courseRecordings = $this->courseRecordings($coursesIds, $collaborateToken);
+        $output->writeln('Recordings found '.count($courseRecordings));
+
+        $output->writeln('<info>STEP 5: Save recording data on PuMuKIT</info>');
+        $this->saveRecordings($courseRecordings, $courses, $output, $collaborateToken);
+
+        return Command::SUCCESS;
+    }
+
+    private function courseRecordings(array $courses, string $collaborateToken): array
+    {
         $courseRecordings = [];
-        $output->writeln('***** Getting recordings from course *****');
         foreach ($courses as $course) {
             $courseData = $this->collaborateAPICourseRecordings->getCourseRecordings($collaborateToken, $course);
             if (isset($courseData['results']) && 0 !== count($courseData['results'])) {
@@ -74,12 +106,20 @@ class SyncMediaCommand extends Command
             }
         }
 
+        return $courseRecordings;
+    }
+
+    private function saveRecordings(array $courseRecordings, array $courses, OutputInterface $output, string $collaborateToken): void
+    {
         foreach ($courseRecordings as $key => $recordings) {
             foreach ($recordings as $element) {
-                $output->writeln('<info>***** Getting data from recording '.$element['id'].'</info>');
+                $output->writeln('<info> ---> STEP 5.1: Getting data from recording '.$element['id'].'</info>');
 
                 $recording = $this->collaborateAPIRecording->getRecordingData($collaborateToken, $element['id']);
                 if (!$recording || !isset($recording['mediaDownloadUrl'])) {
+                    $output->writeln('<comment> ---> STEP 5.2: No accesible recording</comment>');
+                    $output->writeln('');
+
                     continue;
                 }
 
@@ -87,25 +127,41 @@ class SyncMediaCommand extends Command
                 $title = $recording['name'];
                 $created = $recording['created'];
 
-                //                TODO: Obtener usuarios moderadores del curso. Crear serie del curso y agregar los moderadores. Autoprovisionar los usuarios.
-                //                TODO: Get info about moderator to assing on PuMuKIT.
-                //                $sessions = $this->collaborateAPISessionSearch->searchSessions($collaborateToken);
-                //
-                //                $sessionsNames = array_column($sessions['results'], 'name');
-                //                $index = array_search($element['sessionName'], $sessionsNames);
-                //                $sessionId = $sessions['results'][$index]['id'];
-                //
-                //                $enrollments = $this->collaborateAPISessionSearch->getEnrollmentsBySessionId($collaborateToken, $sessionId);
+                $collaborateRecording = CollaborateRecording::create($element['id'], $key, $courses[$key], $downloadUrl, $element['sessionName'], $title, $created);
+                $owners = $this->recordingOwners($element['sessionName'], $collaborateToken);
+                $collaborateRecording->addOwners($owners);
 
-                $collaborateRecording = CollaborateRecording::create($element['id'], $key, $downloadUrl, $element['sessionName'], $title, $created);
                 $recording = $this->collaborateCreateRecording->create($collaborateRecording);
 
-                if ($recording) {
-                    $output->writeln('<info>Created new collaborate recording with ID '.$recording->recording().'</info>');
-                }
+                $output->writeln(' ---> STEP 5.2: Created new collaborate recording with ID '.$recording->recording());
+                $output->writeln('');
+            }
+        }
+    }
+
+    private function recordingOwners(string $sessionName, string $collaborateToken): array
+    {
+        $sessions = $this->collaborateAPISessionSearch->searchSessions($collaborateToken);
+
+        $sessionsResults = array_column($sessions['results'], 'name');
+        $index = array_search($sessionName, $sessionsResults);
+        $sessionId = $sessions['results'][$index]['id'];
+
+        $enrollments = $this->collaborateAPISessionSearch->getEnrollmentsBySessionId($collaborateToken, $sessionId);
+
+        $owners = [];
+        foreach ($enrollments['results'] as $enrollment) {
+            if ('moderator' === $enrollment['launchingRole']) {
+                $owners[] = $enrollment['userId'];
             }
         }
 
-        return Command::SUCCESS;
+        $users = [];
+        foreach ($owners as $owner) {
+            $user = $this->collaborateAPIUser->searchUser($collaborateToken, $owner);
+            $users[$user['email']] = $user['displayName'];
+        }
+
+        return $users;
     }
 }

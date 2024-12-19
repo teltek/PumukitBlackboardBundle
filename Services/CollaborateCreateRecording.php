@@ -16,8 +16,8 @@ class CollaborateCreateRecording
 
     public function create(CollaborateRecording $collaborateRecording): ?\Pumukit\BlackboardBundle\Document\CollaborateRecording
     {
-        if ($this->wasCreated($collaborateRecording->id())) {
-            return null;
+        if ($recording = $this->wasCreated($collaborateRecording->id())) {
+            return $recording;
         }
 
         $recording = \Pumukit\BlackboardBundle\Document\CollaborateRecording::create($collaborateRecording);
@@ -27,12 +27,10 @@ class CollaborateCreateRecording
         return $recording;
     }
 
-    private function wasCreated(string $recordingId): bool
+    private function wasCreated(string $recordingId): ?\Pumukit\BlackboardBundle\Document\CollaborateRecording
     {
-        $recording = $this->documentManager->getRepository(\Pumukit\BlackboardBundle\Document\CollaborateRecording::class)->findBy([
+        return $this->documentManager->getRepository(\Pumukit\BlackboardBundle\Document\CollaborateRecording::class)->findOneBy([
             'recording' => $recordingId,
         ]);
-
-        return (bool) $recording;
     }
 }

@@ -60,4 +60,9 @@ class CollaborateAPIConfiguration
     {
         return $this->host().self::API_BASE_PATH.'/sessions';
     }
+
+    public function userUrl(): string
+    {
+        return $this->host().self::API_BASE_PATH.'/users';
+    }
 }

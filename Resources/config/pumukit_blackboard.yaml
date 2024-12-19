@@ -3,6 +3,8 @@ services:
     autowire:      true
     autoconfigure: true
     public:        true
+    bind:
+      $tmpPath: '%pumukit.tmp%'
 
   Pumukit\BlackboardBundle\Controller\:
     resource: '../../Controller/'
@@ -46,3 +48,6 @@ services:
 
   Pumukit\BlackboardBundle\Services\CollaborateCreateRecording:
     class: Pumukit\BlackboardBundle\Services\CollaborateCreateRecording
+
+  Pumukit\BlackboardBundle\Services\CollaborateAPIUser:
+    class: Pumukit\BlackboardBundle\Services\CollaborateAPIUser
