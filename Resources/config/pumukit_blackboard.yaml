@@ -6,10 +6,6 @@ services:
     bind:
       $tmpPath: '%pumukit.tmp%'
 
-  Pumukit\BlackboardBundle\Controller\:
-    resource: '../../Controller/'
-    tags: ['controller.service_arguments']
-
   Pumukit\BlackboardBundle\Command\:
     resource: '../../Command'
     tags: ['console.command']
