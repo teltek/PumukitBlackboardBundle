@@ -32,6 +32,23 @@ class CollaborateAPIRecording
         return json_decode($recordingsResponse, true);
     }
 
+    public function generateDownloadURL(array $recording): string
+    {
+        if (isset($recording['mediaDownloadUrl'])) {
+            return $recording['mediaDownloadUrl'];
+        }
+
+        if (isset($recording['extStreams'][0]['streamUrl'])) {
+            return $recording['extStreams'][0]['streamUrl'];
+        }
+
+        if (isset($recording['streams']['WEB'])) {
+            return $recording['streams']['WEB'];
+        }
+
+        throw new \Exception('Could not generate download URL');
+    }
+
     private function recordings(string $accessToken, string $path): ?string
     {
         $response = $this->client->request('GET', $path, [

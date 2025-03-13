@@ -115,15 +115,27 @@ class SyncMediaCommand extends Command
             foreach ($recordings as $element) {
                 $output->writeln('<info> ---> STEP 5.1: Getting data from recording '.$element['id'].'</info>');
 
+                if (false === $element['publicLinkAllowed']) {
+                    continue;
+                }
+
                 $recording = $this->collaborateAPIRecording->getRecordingData($collaborateToken, $element['id']);
-                if (!$recording || !isset($recording['mediaDownloadUrl'])) {
-                    $output->writeln('<comment> ---> STEP 5.2: No accesible recording</comment>');
+                //                if (!$recording || !isset($recording['mediaDownloadUrl'])) {
+                if (!$recording) {
+                    $output->writeln('<comment> ---> STEP 5.2: Recording not found</comment>');
                     $output->writeln('');
 
                     continue;
                 }
 
-                $downloadUrl = $recording['mediaDownloadUrl'];
+                try {
+                    $downloadUrl = $this->collaborateAPIRecording->generateDownloadURL($recording);
+                } catch (\Exception $exception) {
+                    $output->writeln('<comment> ---> STEP 5.2: Cannot generate download url</comment>');
+
+                    continue;
+                }
+
                 $title = $recording['name'];
                 $created = $recording['created'];
 
@@ -133,7 +145,7 @@ class SyncMediaCommand extends Command
 
                 $recording = $this->collaborateCreateRecording->create($collaborateRecording);
 
-                $output->writeln(' ---> STEP 5.2: Created new collaborate recording with ID '.$recording->recording());
+                $output->writeln(' ---> STEP 5.2: Saved collaborate recording with ID '.$recording->recording());
                 $output->writeln('');
             }
         }
