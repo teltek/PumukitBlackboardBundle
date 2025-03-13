@@ -6,10 +6,10 @@ use Pumukit\BlackboardBundle\Services\CollaborateAPIAuth;
 use Pumukit\BlackboardBundle\Services\CollaborateAPICourseRecordings;
 use Pumukit\BlackboardBundle\Services\CollaborateAPIRecording;
 use Pumukit\BlackboardBundle\Services\CollaborateAPISessionSearch;
-use Pumukit\BlackboardBundle\Services\CollaborateAPIUser;
 use Pumukit\BlackboardBundle\Services\CollaborateCreateRecording;
 use Pumukit\BlackboardBundle\Services\LearnAPIAuth;
 use Pumukit\BlackboardBundle\Services\LearnAPICourse;
+use Pumukit\BlackboardBundle\Services\LearnAPIUser;
 use Pumukit\BlackboardBundle\ValueObject\CollaborateRecording;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -19,26 +19,27 @@ class SyncMediaCommand extends Command
 {
     private LearnAPIAuth $learnAPIAuth;
     private LearnAPICourse $learnAPICourse;
+    private LearnAPIUser $learnAPIUser;
     private CollaborateAPIAuth $collaborateAPIAuth;
     private CollaborateAPICourseRecordings $collaborateAPICourseRecordings;
     private CollaborateAPIRecording $collaborateAPIRecording;
     private CollaborateCreateRecording $collaborateCreateRecording;
     private CollaborateAPISessionSearch $collaborateAPISessionSearch;
-    private CollaborateAPIUser $collaborateAPIUser;
 
     public function __construct(
         LearnAPIAuth $learnAPIAuth,
         LearnAPICourse $learnAPICourse,
+        LearnAPIUser $learnAPIUser,
         CollaborateAPIAuth $collaborateAPIAuth,
         CollaborateAPICourseRecordings $collaborateAPICourseRecordings,
         CollaborateAPIRecording $collaborateAPIRecording,
         CollaborateCreateRecording $collaborateCreateRecording,
         CollaborateAPISessionSearch $collaborateAPISessionSearch,
-        CollaborateAPIUser $collaborateAPIUser,
         string $name = null
     ) {
         $this->learnAPIAuth = $learnAPIAuth;
         $this->learnAPICourse = $learnAPICourse;
+        $this->learnAPIUser = $learnAPIUser;
         $this->collaborateAPIAuth = $collaborateAPIAuth;
         $this->collaborateAPICourseRecordings = $collaborateAPICourseRecordings;
         $this->collaborateAPIRecording = $collaborateAPIRecording;
@@ -46,7 +47,6 @@ class SyncMediaCommand extends Command
         $this->collaborateAPISessionSearch = $collaborateAPISessionSearch;
 
         parent::__construct($name);
-        $this->collaborateAPIUser = $collaborateAPIUser;
     }
 
     public function configure(): void
@@ -91,7 +91,7 @@ class SyncMediaCommand extends Command
         $output->writeln('Recordings found '.count($courseRecordings));
 
         $output->writeln('<info>STEP 5: Save recording data on PuMuKIT</info>');
-        $this->saveRecordings($courseRecordings, $courses, $output, $collaborateToken);
+        $this->saveRecordings($courseRecordings, $courses, $output, $collaborateToken, $learnToken);
 
         return Command::SUCCESS;
     }
@@ -109,7 +109,7 @@ class SyncMediaCommand extends Command
         return $courseRecordings;
     }
 
-    private function saveRecordings(array $courseRecordings, array $courses, OutputInterface $output, string $collaborateToken): void
+    private function saveRecordings(array $courseRecordings, array $courses, OutputInterface $output, string $collaborateToken, string $learnToken): void
     {
         foreach ($courseRecordings as $key => $recordings) {
             foreach ($recordings as $element) {
@@ -139,7 +139,7 @@ class SyncMediaCommand extends Command
                 $created = $recording['created'];
 
                 $collaborateRecording = CollaborateRecording::create($element['id'], $key, $courses[$key], $downloadUrl, $element['sessionName'], $title, $created);
-                $owners = $this->recordingOwners($element['sessionName'], $collaborateToken);
+                $owners = $this->recordingOwners($element['sessionName'], $collaborateToken, $learnToken);
                 $collaborateRecording->addOwners($owners);
 
                 $recording = $this->collaborateCreateRecording->create($collaborateRecording);
@@ -150,7 +150,7 @@ class SyncMediaCommand extends Command
         }
     }
 
-    private function recordingOwners(string $sessionName, string $collaborateToken): array
+    private function recordingOwners(string $sessionName, string $collaborateToken, string $learnToken): array
     {
         $sessions = $this->collaborateAPISessionSearch->searchSessions($collaborateToken);
 
@@ -169,8 +169,8 @@ class SyncMediaCommand extends Command
 
         $users = [];
         foreach ($owners as $owner) {
-            $user = $this->collaborateAPIUser->searchUser($collaborateToken, $owner);
-            $users[$user['email']] = $user['displayName'];
+            $user = $this->learnAPIUser->searchUserById($learnToken, $owner['id']);
+            $users[$user['contact']['institutionEmail']] = $user['userName'];
         }
 
         return $users;

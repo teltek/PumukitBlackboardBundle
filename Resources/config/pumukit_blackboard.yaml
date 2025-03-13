@@ -23,6 +23,9 @@ services:
   Pumukit\BlackboardBundle\Services\LearnAPICourse:
     class: Pumukit\BlackboardBundle\Services\LearnAPICourse
 
+  Pumukit\BlackboardBundle\Services\LearnAPIUser:
+    class: Pumukit\BlackboardBundle\Services\LearnAPIUser
+
   Pumukit\BlackboardBundle\Services\CollaborateAPIConfiguration:
     class: Pumukit\BlackboardBundle\Services\CollaborateAPIConfiguration
     arguments:

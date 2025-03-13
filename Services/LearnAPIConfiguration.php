@@ -45,4 +45,9 @@ class LearnAPIConfiguration
     {
         return $this->host().self::API_BASE_PATH.'/v3/courses';
     }
+
+    public function apiUser(): string
+    {
+        return $this->host().self::API_BASE_PATH.'/v1/users';
+    }
 }
