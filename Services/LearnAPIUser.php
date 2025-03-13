@@ -34,7 +34,7 @@ class LearnAPIUser
             ]);
 
             if (Response::HTTP_OK !== $response->getStatusCode()) {
-                throw new \Exception('Unable to get courses. Response status code: '.$response->getStatusCode());
+                throw new \Exception('Unable to get user. Response status code: '.$response->getStatusCode());
             }
 
             return $response->getContent();

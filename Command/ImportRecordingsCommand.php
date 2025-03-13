@@ -63,6 +63,12 @@ class ImportRecordingsCommand extends Command
         $output->writeln('<info>STEP 1: Getting recordings to import</info>');
         $recordings = $this->getRecordingsToImport();
 
+        if (!$recordings) {
+            $output->writeln('<info>No recordings to import</info>');
+
+            return Command::SUCCESS;
+        }
+
         $output->writeln('<info>STEP 2: Validate recordings to import</info>');
         foreach ($recordings as $recording) {
             $users = $this->isValidToImport($recording);

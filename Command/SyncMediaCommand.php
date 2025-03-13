@@ -6,6 +6,7 @@ use Pumukit\BlackboardBundle\Services\CollaborateAPIAuth;
 use Pumukit\BlackboardBundle\Services\CollaborateAPICourseRecordings;
 use Pumukit\BlackboardBundle\Services\CollaborateAPIRecording;
 use Pumukit\BlackboardBundle\Services\CollaborateAPISessionSearch;
+use Pumukit\BlackboardBundle\Services\CollaborateAPIUser;
 use Pumukit\BlackboardBundle\Services\CollaborateCreateRecording;
 use Pumukit\BlackboardBundle\Services\LearnAPIAuth;
 use Pumukit\BlackboardBundle\Services\LearnAPICourse;
@@ -25,6 +26,7 @@ class SyncMediaCommand extends Command
     private CollaborateAPIRecording $collaborateAPIRecording;
     private CollaborateCreateRecording $collaborateCreateRecording;
     private CollaborateAPISessionSearch $collaborateAPISessionSearch;
+    private CollaborateAPIUser $collaborateAPIUser;
 
     public function __construct(
         LearnAPIAuth $learnAPIAuth,
@@ -35,6 +37,7 @@ class SyncMediaCommand extends Command
         CollaborateAPIRecording $collaborateAPIRecording,
         CollaborateCreateRecording $collaborateCreateRecording,
         CollaborateAPISessionSearch $collaborateAPISessionSearch,
+        CollaborateAPIUser $collaborateAPIUser,
         string $name = null
     ) {
         $this->learnAPIAuth = $learnAPIAuth;
@@ -45,6 +48,7 @@ class SyncMediaCommand extends Command
         $this->collaborateAPIRecording = $collaborateAPIRecording;
         $this->collaborateCreateRecording = $collaborateCreateRecording;
         $this->collaborateAPISessionSearch = $collaborateAPISessionSearch;
+        $this->collaborateAPIUser = $collaborateAPIUser;
 
         parent::__construct($name);
     }
@@ -113,6 +117,7 @@ class SyncMediaCommand extends Command
     {
         foreach ($courseRecordings as $key => $recordings) {
             foreach ($recordings as $element) {
+                $output->writeln('');
                 $output->writeln('<info> ---> STEP 5.1: Getting data from recording '.$element['id'].'</info>');
 
                 if (false === $element['publicLinkAllowed']) {
@@ -145,7 +150,6 @@ class SyncMediaCommand extends Command
                 $recording = $this->collaborateCreateRecording->create($collaborateRecording);
 
                 $output->writeln(' ---> STEP 5.2: Saved collaborate recording with ID '.$recording->recording());
-                $output->writeln('');
             }
         }
     }
@@ -169,7 +173,11 @@ class SyncMediaCommand extends Command
 
         $users = [];
         foreach ($owners as $owner) {
-            $user = $this->learnAPIUser->searchUserById($learnToken, $owner['id']);
+            $collabUser = $this->collaborateAPIUser->searchUser($collaborateToken, $owner);
+            $user = $this->learnAPIUser->searchUserById($learnToken, $collabUser['extId']);
+            if (!isset($user['contact']['institutionEmail'])) {
+                continue;
+            }
             $users[$user['contact']['institutionEmail']] = $user['userName'];
         }
 
