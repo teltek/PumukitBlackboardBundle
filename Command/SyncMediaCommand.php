@@ -120,7 +120,6 @@ class SyncMediaCommand extends Command
                 }
 
                 $recording = $this->collaborateAPIRecording->getRecordingData($collaborateToken, $element['id']);
-                //                if (!$recording || !isset($recording['mediaDownloadUrl'])) {
                 if (!$recording) {
                     $output->writeln('<comment> ---> STEP 5.2: Recording not found</comment>');
                     $output->writeln('');
