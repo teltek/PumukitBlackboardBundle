@@ -81,7 +81,7 @@ class ImportRecordingsCommand extends Command
 
             $pathFile = $this->downloadRecording($recording);
             $series = $this->getSeries($recording);
-            $multimediaObject = $this->factoryService->createMultimediaObject($series);
+            $multimediaObject = $this->factoryService->createMultimediaObject($series, true, reset($users));
             $i18nTitle = $this->i18nService->generateI18nText($recording->title());
             $multimediaObject->setI18nTitle($i18nTitle);
             $multimediaObject->setRecordDate($recording->created());
