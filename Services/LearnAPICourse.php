@@ -18,21 +18,29 @@ class LearnAPICourse
 
     public function getIdsFromCourses(string $accessToken): array
     {
-        $coursesResponse = $this->listCourses($accessToken);
-        $courses = json_decode($coursesResponse, true);
-
         $courseIds = [];
-        foreach ($courses['results'] as $course) {
-            $courseIds[$course['uuid']] = $course['name'];
-        }
+        $url = $this->configuration->apiCourseListUrl();
+
+        do {
+            $coursesResponse = $this->listCourses($accessToken, $url);
+            $courses = json_decode($coursesResponse, true);
+
+            foreach ($courses['results'] as $course) {
+                $courseIds[$course['uuid']] = $course['name'];
+            }
+
+            $url = isset($courses['paging']['nextPage'])
+                ? $this->configuration->host().$courses['paging']['nextPage']
+                : null;
+        } while (null !== $url);
 
         return $courseIds;
     }
 
-    private function listCourses(string $accessToken): string
+    private function listCourses(string $accessToken, string $url): string
     {
         try {
-            $response = $this->client->request('GET', $this->configuration->apiCourseListUrl(), [
+            $response = $this->client->request('GET', $url, [
                 'headers' => [
                     'Authorization' => 'Bearer '.$accessToken,
                     'Accept' => 'application/json',

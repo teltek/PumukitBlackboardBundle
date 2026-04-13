@@ -27,6 +27,7 @@ class SyncMediaCommand extends Command
     private CollaborateCreateRecording $collaborateCreateRecording;
     private CollaborateAPISessionSearch $collaborateAPISessionSearch;
     private CollaborateAPIUser $collaborateAPIUser;
+    private OutputInterface $output;
 
     public function __construct(
         LearnAPIAuth $learnAPIAuth,
@@ -63,6 +64,7 @@ class SyncMediaCommand extends Command
 
     public function execute(InputInterface $input, OutputInterface $output): int
     {
+        $this->output = $output;
         $output->writeln('<info>STEP 1: Connecting to Blackboard Learn API</info>');
 
         try {
@@ -104,9 +106,13 @@ class SyncMediaCommand extends Command
     {
         $courseRecordings = [];
         foreach ($courses as $course) {
+            $this->output->writeln('<info>---> Getting recordings for course '.$course.'</info>');
             $courseData = $this->collaborateAPICourseRecordings->getCourseRecordings($collaborateToken, $course);
             if (isset($courseData['results']) && 0 !== count($courseData['results'])) {
+                $this->output->writeln('---> Recordings found for course '.$course.': '.count($courseData['results']));
                 $courseRecordings[$course] = $courseData['results'];
+            } else {
+                $this->output->writeln('---> No recordings found for course '.$course);
             }
         }
 
