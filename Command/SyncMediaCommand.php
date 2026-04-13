@@ -126,6 +126,12 @@ class SyncMediaCommand extends Command
                 $output->writeln('');
                 $output->writeln('<info> ---> STEP 5.1: Getting data from recording '.$element['id'].'</info>');
 
+                if ($this->collaborateCreateRecording->alreadyExists($element['id'])) {
+                    $output->writeln('<comment> ---> STEP 5.1: Recording '.$element['id'].' already exists, skipping</comment>');
+
+                    continue;
+                }
+
                 if (false === $element['publicLinkAllowed']) {
                     continue;
                 }

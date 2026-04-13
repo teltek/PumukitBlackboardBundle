@@ -27,6 +27,11 @@ class CollaborateCreateRecording
         return $recording;
     }
 
+    public function alreadyExists(string $recordingId): bool
+    {
+        return null !== $this->wasCreated($recordingId);
+    }
+
     private function wasCreated(string $recordingId): ?\Pumukit\BlackboardBundle\Document\CollaborateRecording
     {
         return $this->documentManager->getRepository(\Pumukit\BlackboardBundle\Document\CollaborateRecording::class)->findOneBy([
