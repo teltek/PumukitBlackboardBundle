@@ -21,6 +21,8 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class ImportRecordingsCommand extends Command
 {
+    private const BATCH_SIZE = 10;
+
     private DocumentManager $documentManager;
     private HttpClientInterface $httpClient;
     private FactoryService $factoryService;
@@ -60,47 +62,79 @@ class ImportRecordingsCommand extends Command
 
     public function execute(InputInterface $input, OutputInterface $output): int
     {
-        $output->writeln('<info>STEP 1: Getting recordings to import</info>');
-        $recordings = $this->getRecordingsToImport();
+        $output->writeln('<info>Starting import of Blackboard recordings</info>');
 
-        if (!$recordings) {
-            $output->writeln('<info>No recordings to import</info>');
+        $countImported = 0;
+        $countSkipped = 0;
+        $countErrors = 0;
+        $processed = 0;
 
-            return Command::SUCCESS;
-        }
+        foreach ($this->getRecordingsIterator() as $recording) {
+            $recordingId = $recording->recording();
+            $output->writeln(sprintf('<info>[%s] Processing recording...</info>', $recordingId));
 
-        $output->writeln('<info>STEP 2: Validate recordings to import</info>');
-        foreach ($recordings as $recording) {
-            $users = $this->isValidToImport($recording);
-            $output->writeln(' ---> STEP 2.1: Getting recording '.$recording->recording());
-            if (empty($users)) {
-                $output->writeln(' ---> STEP 2.2:[WARNING] Recording with ID '.$recording->recording().' doesnt have owners on PuMuKIT');
+            $cleared = false;
+            try {
+                $users = $this->isValidToImport($recording);
+                if (empty($users)) {
+                    $output->writeln(sprintf(' ---> [WARNING] Recording %s has no owners on PuMuKIT. Skipping.', $recordingId));
+                    ++$countSkipped;
 
-                continue;
+                    continue;
+                }
+
+                $pathFile = $this->downloadRecording($recording);
+                if (null === $pathFile) {
+                    $output->writeln(sprintf(' ---> [ERROR] Could not download recording %s. Skipping.', $recordingId));
+                    ++$countErrors;
+
+                    continue;
+                }
+
+                $series = $this->getSeries($recording);
+                $multimediaObject = $this->factoryService->createMultimediaObject($series, true, reset($users));
+                $i18nTitle = $this->i18nService->generateI18nText($recording->title());
+                $multimediaObject->setI18nTitle($i18nTitle);
+                $multimediaObject->setRecordDate($recording->created());
+                $jobOptions = new JobOptions('master_copy', 2, 'en', [], []);
+                $this->jobCreator->fromPath($multimediaObject, $pathFile, $jobOptions);
+                $multimediaObject->setProperty('blackboard_recording', $recordingId);
+                $recording->markAsImported();
+
+                $role = $this->getOwnerRole();
+                foreach ($users as $user) {
+                    $multimediaObject->addPersonWithRole($user->getPerson(), $role);
+                }
+
+                $this->documentManager->flush();
+                ++$countImported;
+                $output->writeln(sprintf(' ---> [OK] Recording %s imported successfully.', $recordingId));
+            } catch (\Throwable $e) {
+                ++$countErrors;
+                $output->writeln(sprintf(
+                    ' ---> [ERROR] Failed to import recording %s: %s',
+                    $recordingId,
+                    $e->getMessage()
+                ));
+                $this->documentManager->clear();
+                $cleared = true;
             }
 
-            $pathFile = $this->downloadRecording($recording);
-            $series = $this->getSeries($recording);
-            $multimediaObject = $this->factoryService->createMultimediaObject($series, true, reset($users));
-            $i18nTitle = $this->i18nService->generateI18nText($recording->title());
-            $multimediaObject->setI18nTitle($i18nTitle);
-            $multimediaObject->setRecordDate($recording->created());
-            $jobOptions = new JobOptions('master_copy', 2, 'en', [], []);
-            $this->jobCreator->fromPath($multimediaObject, $pathFile, $jobOptions);
-            $multimediaObject->setProperty('blackboard_recording', $recording->recording());
-            $recording->markAsImported();
-
-            $role = $this->getOwnerRole();
-            foreach ($users as $user) {
-                $multimediaObject->addPersonWithRole($user->getPerson(), $role);
+            ++$processed;
+            if (!$cleared && 0 === ($processed % self::BATCH_SIZE)) {
+                $this->documentManager->clear();
+                $output->writeln(sprintf('<comment>DocumentManager cleared after %d recordings</comment>', $processed));
             }
-
-            $this->documentManager->flush();
-
-            $output->writeln(' ---> STEP 2.2: Recording with ID '.$recording->recording().' imported');
         }
 
-        return Command::SUCCESS;
+        $output->writeln(sprintf(
+            '<info>Import finished — Imported: %d | Skipped: %d | Errors: %d</info>',
+            $countImported,
+            $countSkipped,
+            $countErrors
+        ));
+
+        return $countErrors > 0 ? Command::FAILURE : Command::SUCCESS;
     }
 
     private function isValidToImport(CollaborateRecording $recording): array
@@ -117,29 +151,53 @@ class ImportRecordingsCommand extends Command
         return $users;
     }
 
-    private function getRecordingsToImport(): array
+    /**
+     * Returns an iterable cursor to avoid loading all documents into memory at once.
+     */
+    private function getRecordingsIterator(): iterable
     {
-        return $this->documentManager->getRepository(CollaborateRecording::class)->findBy([
-            'imported' => false,
-        ]);
+        return $this->documentManager->getRepository(CollaborateRecording::class)
+            ->createQueryBuilder()
+            ->field('imported')->equals(false)
+            ->getQuery()
+            ->toIterable()
+        ;
     }
 
+    /**
+     * Streams the remote file to disk to avoid loading large files into memory.
+     */
     private function downloadRecording(CollaborateRecording $recording): ?Path
     {
+        $data = parse_url($recording->downloadUrl());
+        $extension = pathinfo($data['path'] ?? '', PATHINFO_EXTENSION);
+        $filePath = $this->tmpPath.'/'.$recording->recording().($extension ? '.'.$extension : '');
+
         $response = $this->httpClient->request('GET', $recording->downloadUrl());
         if (Response::HTTP_OK !== $response->getStatusCode()) {
             return null;
         }
 
-        $fileContent = $response->getContent();
+        $fileHandle = fopen($filePath, 'w');
+        if (false === $fileHandle) {
+            throw new \RuntimeException(sprintf('Cannot open file for writing: %s', $filePath));
+        }
 
-        $data = parse_url($recording->downloadUrl());
-        $extension = explode('.', $data['path']);
-        $extension = end($extension);
+        try {
+            foreach ($this->httpClient->stream($response) as $chunk) {
+                fwrite($fileHandle, $chunk->getContent());
+            }
+        } catch (\Throwable $e) {
+            fclose($fileHandle);
+            if (file_exists($filePath)) {
+                unlink($filePath);
+            }
+            throw $e;
+        }
 
-        file_put_contents($this->tmpPath.'/'.$recording->recording().'.'.$extension, $fileContent);
+        fclose($fileHandle);
 
-        return Path::create($this->tmpPath.'/'.$recording->recording().'.'.$extension);
+        return Path::create($filePath);
     }
 
     private function getSeries(CollaborateRecording $recording): Series
