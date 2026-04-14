@@ -39,7 +39,7 @@ class ImportRecordingsCommand extends Command
         i18nService $i18nService,
         UserService $userService,
         string $tmpPath,
-        string $name = null
+        ?string $name = null
     ) {
         $this->documentManager = $documentManager;
         $this->httpClient = $httpClient;
@@ -74,6 +74,7 @@ class ImportRecordingsCommand extends Command
             $output->writeln(sprintf('<info>[%s] Processing recording...</info>', $recordingId));
 
             $cleared = false;
+
             try {
                 $users = $this->isValidToImport($recording);
                 if (empty($users)) {
@@ -192,6 +193,7 @@ class ImportRecordingsCommand extends Command
             if (file_exists($filePath)) {
                 unlink($filePath);
             }
+
             throw $e;
         }
 
