@@ -161,7 +161,7 @@ class ImportRecordingsCommand extends Command
             ->createQueryBuilder()
             ->field('imported')->equals(false)
             ->getQuery()
-            ->toIterable()
+            ->execute()
         ;
     }
 
