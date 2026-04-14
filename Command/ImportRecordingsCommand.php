@@ -231,7 +231,6 @@ class ImportRecordingsCommand extends Command
 
         try {
             foreach ($this->httpClient->stream($response) as $chunk) {
-
                 $content = $chunk->getContent();
                 if ('' !== $content && false === fwrite($fileHandle, $content)) {
                     throw new \RuntimeException(sprintf('Failed to write to file: %s', $filePath));
