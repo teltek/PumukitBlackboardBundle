@@ -15,13 +15,17 @@ use Pumukit\SchemaBundle\Services\FactoryService;
 use Pumukit\SchemaBundle\Services\UserService;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
+use Symfony\Contracts\HttpClient\ResponseInterface;
 
 class ImportRecordingsCommand extends Command
 {
     private const BATCH_SIZE = 10;
+
+    private bool $fallbackFullDownload = false;
 
     private DocumentManager $documentManager;
     private HttpClientInterface $httpClient;
@@ -57,12 +61,23 @@ class ImportRecordingsCommand extends Command
         $this
             ->setName('pumukit:blackboard:import:recordings')
             ->setDescription('This command import blackboard collaborate recordings on PuMuKIT')
+            ->addOption(
+                'fallback-full-download',
+                null,
+                InputOption::VALUE_NONE,
+                'If streaming (chunked) download fails, retry downloading the full file into memory as a fallback.'
+            )
         ;
     }
 
     public function execute(InputInterface $input, OutputInterface $output): int
     {
         $output->writeln('<info>Starting import of Blackboard recordings</info>');
+
+        $this->fallbackFullDownload = $input->getOption('fallback-full-download');
+        if ($this->fallbackFullDownload) {
+            $output->writeln('<comment>Fallback full-download mode is enabled.</comment>');
+        }
 
         $countImported = 0;
         $countSkipped = 0;
@@ -152,9 +167,6 @@ class ImportRecordingsCommand extends Command
         return $users;
     }
 
-    /**
-     * Returns an iterable cursor to avoid loading all documents into memory at once.
-     */
     private function getRecordingsIterator(): iterable
     {
         return $this->documentManager->getRepository(CollaborateRecording::class)
@@ -166,7 +178,15 @@ class ImportRecordingsCommand extends Command
     }
 
     /**
-     * Streams the remote file to disk to avoid loading large files into memory.
+     * Streams the remote file to disk chunk by chunk to avoid loading large files into memory.
+     *
+     * The Symfony HttpClient stream yields three kinds of chunks:
+     *   - isFirst(): only headers, no body content → skip it.
+     *   - isLast():  signals end of stream, may or may not carry content → write + stop.
+     *   - otherwise: regular body data → write to disk.
+     *
+     * If streaming fails and --fallback-full-download is enabled, the full file is downloaded
+     * into memory as a last resort.
      */
     private function downloadRecording(CollaborateRecording $recording): ?Path
     {
@@ -179,6 +199,31 @@ class ImportRecordingsCommand extends Command
             return null;
         }
 
+        try {
+            return $this->streamToFile($response, $filePath);
+        } catch (\Throwable $streamException) {
+            if (!$this->fallbackFullDownload) {
+                throw $streamException;
+            }
+
+            // Streaming failed — retry with a full in-memory download
+            return $this->fullDownloadToFile($recording, $filePath);
+        }
+    }
+
+    /**
+     * Downloads the response body by streaming chunks directly to disk.
+     *
+     * Each chunk from Symfony's HttpClient can be:
+     *   - isFirst(): headers ready, getContent() always returns "" → the empty-content guard skips it safely.
+     *   - isLast():  end of stream, may or may not carry body data → written if non-empty, then loop ends.
+     *   - otherwise: regular body data → written to disk.
+     *
+     * Relying on the `'' !== $content` guard (rather than an explicit isFirst() skip) ensures
+     * that no byte of actual content is ever missed, regardless of chunk type.
+     */
+    private function streamToFile(ResponseInterface $response, string $filePath): Path
+    {
         $fileHandle = fopen($filePath, 'w');
         if (false === $fileHandle) {
             throw new \RuntimeException(sprintf('Cannot open file for writing: %s', $filePath));
@@ -186,7 +231,15 @@ class ImportRecordingsCommand extends Command
 
         try {
             foreach ($this->httpClient->stream($response) as $chunk) {
-                fwrite($fileHandle, $chunk->getContent());
+
+                $content = $chunk->getContent();
+                if ('' !== $content && false === fwrite($fileHandle, $content)) {
+                    throw new \RuntimeException(sprintf('Failed to write to file: %s', $filePath));
+                }
+
+                if ($chunk->isLast()) {
+                    break;
+                }
             }
         } catch (\Throwable $e) {
             fclose($fileHandle);
@@ -198,6 +251,25 @@ class ImportRecordingsCommand extends Command
         }
 
         fclose($fileHandle);
+
+        return Path::create($filePath);
+    }
+
+    /**
+     * Fallback: downloads the full response body into memory and writes it to disk in one shot.
+     * Only used when streaming fails and --fallback-full-download is enabled.
+     */
+    private function fullDownloadToFile(CollaborateRecording $recording, string $filePath): ?Path
+    {
+        $response = $this->httpClient->request('GET', $recording->downloadUrl());
+        if (Response::HTTP_OK !== $response->getStatusCode()) {
+            return null;
+        }
+
+        $content = $response->getContent();
+        if (false === file_put_contents($filePath, $content)) {
+            throw new \RuntimeException(sprintf('Failed to write file: %s', $filePath));
+        }
 
         return Path::create($filePath);
     }
