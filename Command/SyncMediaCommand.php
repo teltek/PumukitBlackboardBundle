@@ -28,6 +28,7 @@ class SyncMediaCommand extends Command
     private CollaborateAPISessionSearch $collaborateAPISessionSearch;
     private CollaborateAPIUser $collaborateAPIUser;
     private OutputInterface $output;
+    private array $errors = [];
 
     public function __construct(
         LearnAPIAuth $learnAPIAuth,
@@ -98,6 +99,15 @@ class SyncMediaCommand extends Command
 
         $output->writeln('<info>STEP 5: Save recording data on PuMuKIT</info>');
         $this->saveRecordings($courseRecordings, $courses, $output, $collaborateToken, $learnToken);
+
+        if (!empty($this->errors)) {
+            $output->writeln('');
+            $output->writeln('<comment>===== ERRORS FOUND DURING EXECUTION =====</comment>');
+            foreach ($this->errors as $error) {
+                $output->writeln('<error>'.$error.'</error>');
+            }
+            $output->writeln('<comment>Total errors: '.count($this->errors).'</comment>');
+        }
 
         return Command::SUCCESS;
     }
@@ -172,6 +182,14 @@ class SyncMediaCommand extends Command
 
         $sessionsResults = array_column($sessions['results'], 'name');
         $index = array_search($sessionName, $sessionsResults);
+
+        if (false === $index || !isset($sessions['results'][$index]['id'])) {
+            $this->errors[] = 'Session not found for name: "'.$sessionName.'"';
+            $this->output->writeln('<comment> ---> WARNING: Session not found for name "'.$sessionName.'", skipping owners</comment>');
+
+            return [];
+        }
+
         $sessionId = $sessions['results'][$index]['id'];
 
         $enrollments = $this->collaborateAPISessionSearch->getEnrollmentsBySessionId($collaborateToken, $sessionId);
@@ -185,8 +203,16 @@ class SyncMediaCommand extends Command
 
         $users = [];
         foreach ($owners as $owner) {
-            $collabUser = $this->collaborateAPIUser->searchUser($collaborateToken, $owner);
-            $user = $this->learnAPIUser->searchUserById($learnToken, $collabUser['extId']);
+            try {
+                $collabUser = $this->collaborateAPIUser->searchUser($collaborateToken, $owner);
+                $user = $this->learnAPIUser->searchUserById($learnToken, $collabUser['extId']);
+            } catch (\Exception $exception) {
+                $this->errors[] = 'Error getting user data for owner "'.$owner.'": '.$exception->getMessage();
+                $this->output->writeln('<comment> ---> WARNING: Skipping owner "'.$owner.'": '.$exception->getMessage().'</comment>');
+
+                continue;
+            }
+
             if (!isset($user['contact']['institutionEmail'])) {
                 continue;
             }
