@@ -16,6 +16,7 @@ class BlackboardCourseManager
     public function __construct(DocumentManager $documentManager)
     {
         $this->documentManager = $documentManager;
+
         /** @var BlackboardCourseRepository $repo */
         $repo = $documentManager->getRepository(BlackboardCourse::class);
         $this->repository = $repo;

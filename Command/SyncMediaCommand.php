@@ -77,6 +77,7 @@ class SyncMediaCommand extends Command
         $limit = (int) $input->getOption('limit');
 
         $output->writeln('<info>STEP 1: Connecting to Blackboard Learn API</info>');
+
         try {
             $learnToken = $this->learnAPIAuth->getToken();
             $output->writeln('Connected.');
@@ -87,6 +88,7 @@ class SyncMediaCommand extends Command
         }
 
         $output->writeln('<info>STEP 2: Connecting to Blackboard Collaborate API</info>');
+
         try {
             $collaborateToken = $this->collaborateAPIAuth->getToken();
             $output->writeln('Connected.');

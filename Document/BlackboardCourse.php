@@ -9,6 +9,7 @@ use MongoDB\BSON\ObjectId;
 
 /**
  * @MongoDB\Document(repositoryClass="Pumukit\BlackboardBundle\Repository\BlackboardCourseRepository")
+ *
  * @MongoDB\Index(keys={"collaborateId"="asc"}, options={"unique"=true})
  */
 class BlackboardCourse
