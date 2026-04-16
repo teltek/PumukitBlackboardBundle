@@ -21,12 +21,6 @@ class BlackboardCourseManager
         $this->repository = $repo;
     }
 
-    /**
-     * Upserts a course from Learn data.
-     * - If new: persists with status=pending_recordings.
-     * - If existing: updates name/lastSyncAt but does NOT change status,
-     *   unless the course was previously in 'done' state (re-queues it to check for new recordings).
-     */
     public function upsert(string $learnId, string $collaborateId, string $name): BlackboardCourse
     {
         $course = $this->repository->findByCollaborateId($collaborateId);
@@ -36,7 +30,6 @@ class BlackboardCourseManager
             $this->documentManager->persist($course);
         } else {
             $course->updateInfo($name);
-            // Re-queue 'done' courses so they are checked again for new recordings.
             if (BlackboardCourse::STATUS_DONE === $course->status()) {
                 $course->markAsPendingRecordings();
             }
@@ -73,4 +66,3 @@ class BlackboardCourseManager
         $this->documentManager->flush();
     }
 }
-

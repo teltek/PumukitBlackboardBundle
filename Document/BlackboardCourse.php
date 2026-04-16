@@ -13,10 +13,10 @@ use MongoDB\BSON\ObjectId;
  */
 class BlackboardCourse
 {
-    public const STATUS_PENDING_RECORDINGS = 'pending_recordings';
-    public const STATUS_PENDING_IMPORT = 'pending_import';
-    public const STATUS_DONE = 'done';
-    public const STATUS_ERROR = 'error';
+    public const STATUS_PENDING_RECORDINGS = 0;
+    public const STATUS_PENDING_IMPORT = 1;
+    public const STATUS_DONE = 2;
+    public const STATUS_ERROR = 3;
 
     /**
      * @MongoDB\Id
@@ -24,15 +24,11 @@ class BlackboardCourse
     private $id;
 
     /**
-     * Internal Blackboard Learn ID (e.g. "_123_1").
-     *
      * @MongoDB\Field(type="string")
      */
     private string $learnId;
 
     /**
-     * UUID used by Collaborate as contextExtId.
-     *
      * @MongoDB\Field(type="string")
      */
     private string $collaborateId;
@@ -43,13 +39,11 @@ class BlackboardCourse
     private string $name;
 
     /**
-     * @MongoDB\Field(type="string")
+     * @MongoDB\Field(type="int")
      */
-    private string $status;
+    private int $status;
 
     /**
-     * Number of recordings found in Collaborate. Filled during Step 2.
-     *
      * @MongoDB\Field(type="int")
      */
     private int $recordingsCount = 0;
@@ -99,7 +93,7 @@ class BlackboardCourse
         return $this->name;
     }
 
-    public function status(): string
+    public function status(): int
     {
         return $this->status;
     }
@@ -155,4 +149,3 @@ class BlackboardCourse
         $this->lastSyncAt = new \DateTime();
     }
 }
-

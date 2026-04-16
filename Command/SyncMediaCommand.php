@@ -23,7 +23,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 class SyncMediaCommand extends Command
 {
     private const DEFAULT_LIMIT = 50;
-    private const SLEEP_MS = 200; // milliseconds between Collaborate requests
+    private const SLEEP_MS = 200;
 
     private LearnAPIAuth $learnAPIAuth;
     private LearnAPIUser $learnAPIUser;
@@ -65,18 +65,9 @@ class SyncMediaCommand extends Command
     public function configure(): void
     {
         $this
-            ->setName('pumukit:blackboard:sync')
-            ->setDescription(
-                'Step 2 — Fetches Collaborate recordings for courses in status=pending_recordings '.
-                'and saves them in PuMuKIT. Run pumukit:blackboard:sync-courses first.'
-            )
-            ->addOption(
-                'limit',
-                'l',
-                InputOption::VALUE_OPTIONAL,
-                'Maximum number of courses to process in this run.',
-                self::DEFAULT_LIMIT
-            )
+            ->setName('pumukit:blackboard:sync-recordings')
+            ->setDescription('Fetches Collaborate recordings for pending courses and saves them in PuMuKIT.')
+            ->addOption('limit', 'l', InputOption::VALUE_OPTIONAL, 'Maximum number of courses to process.', self::DEFAULT_LIMIT)
         ;
     }
 
@@ -120,22 +111,15 @@ class SyncMediaCommand extends Command
 
         foreach ($courses as $index => $course) {
             $output->writeln('');
-            $output->writeln(sprintf(
-                '<info>[%d/%d] Course: %s (%s)</info>',
-                $index + 1,
-                $total,
-                $course->name(),
-                $course->collaborateId()
-            ));
+            $output->writeln(sprintf('<info>[%d/%d] Course: %s (%s)</info>', $index + 1, $total, $course->name(), $course->collaborateId()));
 
             try {
                 $this->processCourse($course, $collaborateToken, $learnToken, $output);
             } catch (\Exception $e) {
                 $this->courseManager->markAsError($course, $e->getMessage());
-                $output->writeln('<error>ERROR: '.$e->getMessage().' — course marked as error.</error>');
+                $output->writeln('<error>ERROR: '.$e->getMessage().'</error>');
             }
 
-            // Rate limiting: small pause between Collaborate requests
             usleep(self::SLEEP_MS * 1000);
         }
 

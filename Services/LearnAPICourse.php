@@ -16,12 +16,6 @@ class LearnAPICourse
         $this->configuration = $configuration;
     }
 
-    /**
-     * Returns an array of courses with keys: learnId, collaborateId (uuid), name.
-     * Results are sorted by modified date descending (most recently active courses first).
-     *
-     * @return array<int, array{learnId: string, collaborateId: string, name: string}>
-     */
     public function getCourses(string $accessToken): array
     {
         $courses = [];
@@ -47,9 +41,6 @@ class LearnAPICourse
         return $courses;
     }
 
-    /**
-     * @deprecated Use getCourses() instead
-     */
     public function getIdsFromCourses(string $accessToken): array
     {
         $courseIds = [];

@@ -34,11 +34,7 @@ class SyncCoursesCommand extends Command
     {
         $this
             ->setName('pumukit:blackboard:sync-courses')
-            ->setDescription(
-                'Step 1 — Fetches all courses from Blackboard Learn and persists them in MongoDB. '.
-                'Safe to re-run: new courses are added as pending_recordings; existing ones update '.
-                'metadata without losing their processing status (except done → re-queued).'
-            )
+            ->setDescription('Fetches all courses from Blackboard Learn and persists them in MongoDB.')
         ;
     }
 
@@ -75,21 +71,18 @@ class SyncCoursesCommand extends Command
             $this->courseManager->upsert($course['learnId'], $course['collaborateId'], $course['name']);
 
             $output->writeln(sprintf(
-                ' ---> [%d/%d] %s (collaborateId: %s)',
+                ' ---> [%d/%d] %s (%s)',
                 $i + 1,
                 $total,
                 $course['name'],
                 $course['collaborateId']
             ));
 
-            // Flush in batches to avoid memory pressure
             if (0 === (($i + 1) % $batchSize)) {
                 $this->courseManager->flush();
-                $output->writeln(sprintf('<comment>Flushed batch of %d</comment>', $batchSize));
             }
         }
 
-        // Flush remaining
         $this->courseManager->flush();
 
         $output->writeln(sprintf('<info>Done. %d courses processed.</info>', $total));
@@ -97,5 +90,3 @@ class SyncCoursesCommand extends Command
         return Command::SUCCESS;
     }
 }
-
-
