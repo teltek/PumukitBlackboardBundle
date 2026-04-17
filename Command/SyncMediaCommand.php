@@ -1,7 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Pumukit\BlackboardBundle\Command;
 
+use Pumukit\BlackboardBundle\Document\BlackboardCourse;
+use Pumukit\BlackboardBundle\Services\BlackboardCourseManager;
 use Pumukit\BlackboardBundle\Services\CollaborateAPIAuth;
 use Pumukit\BlackboardBundle\Services\CollaborateAPICourseRecordings;
 use Pumukit\BlackboardBundle\Services\CollaborateAPIRecording;
@@ -9,17 +13,19 @@ use Pumukit\BlackboardBundle\Services\CollaborateAPISessionSearch;
 use Pumukit\BlackboardBundle\Services\CollaborateAPIUser;
 use Pumukit\BlackboardBundle\Services\CollaborateCreateRecording;
 use Pumukit\BlackboardBundle\Services\LearnAPIAuth;
-use Pumukit\BlackboardBundle\Services\LearnAPICourse;
 use Pumukit\BlackboardBundle\Services\LearnAPIUser;
 use Pumukit\BlackboardBundle\ValueObject\CollaborateRecording;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 class SyncMediaCommand extends Command
 {
+    private const DEFAULT_LIMIT = 50;
+    private const SLEEP_MS = 200;
+
     private LearnAPIAuth $learnAPIAuth;
-    private LearnAPICourse $learnAPICourse;
     private LearnAPIUser $learnAPIUser;
     private CollaborateAPIAuth $collaborateAPIAuth;
     private CollaborateAPICourseRecordings $collaborateAPICourseRecordings;
@@ -27,12 +33,12 @@ class SyncMediaCommand extends Command
     private CollaborateCreateRecording $collaborateCreateRecording;
     private CollaborateAPISessionSearch $collaborateAPISessionSearch;
     private CollaborateAPIUser $collaborateAPIUser;
+    private BlackboardCourseManager $courseManager;
     private OutputInterface $output;
     private array $errors = [];
 
     public function __construct(
         LearnAPIAuth $learnAPIAuth,
-        LearnAPICourse $learnAPICourse,
         LearnAPIUser $learnAPIUser,
         CollaborateAPIAuth $collaborateAPIAuth,
         CollaborateAPICourseRecordings $collaborateAPICourseRecordings,
@@ -40,10 +46,10 @@ class SyncMediaCommand extends Command
         CollaborateCreateRecording $collaborateCreateRecording,
         CollaborateAPISessionSearch $collaborateAPISessionSearch,
         CollaborateAPIUser $collaborateAPIUser,
+        BlackboardCourseManager $courseManager,
         ?string $name = null
     ) {
         $this->learnAPIAuth = $learnAPIAuth;
-        $this->learnAPICourse = $learnAPICourse;
         $this->learnAPIUser = $learnAPIUser;
         $this->collaborateAPIAuth = $collaborateAPIAuth;
         $this->collaborateAPICourseRecordings = $collaborateAPICourseRecordings;
@@ -51,6 +57,7 @@ class SyncMediaCommand extends Command
         $this->collaborateCreateRecording = $collaborateCreateRecording;
         $this->collaborateAPISessionSearch = $collaborateAPISessionSearch;
         $this->collaborateAPIUser = $collaborateAPIUser;
+        $this->courseManager = $courseManager;
 
         parent::__construct($name);
     }
@@ -58,21 +65,24 @@ class SyncMediaCommand extends Command
     public function configure(): void
     {
         $this
-            ->setName('pumukit:blackboard:sync')
-            ->setDescription('This command download blackboard collaborate recordings')
+            ->setName('pumukit:blackboard:sync-recordings')
+            ->setDescription('Fetches Collaborate recordings for pending courses and saves them in PuMuKIT.')
+            ->addOption('limit', 'l', InputOption::VALUE_OPTIONAL, 'Maximum number of courses to process.', self::DEFAULT_LIMIT)
         ;
     }
 
     public function execute(InputInterface $input, OutputInterface $output): int
     {
         $this->output = $output;
+        $limit = (int) $input->getOption('limit');
+
         $output->writeln('<info>STEP 1: Connecting to Blackboard Learn API</info>');
 
         try {
             $learnToken = $this->learnAPIAuth->getToken();
-            $output->writeln('DONE');
-        } catch (\Exception $exception) {
-            $output->writeln('<error>ERROR: '.$exception->getMessage().'</error>');
+            $output->writeln('Connected.');
+        } catch (\Exception $e) {
+            $output->writeln('<error>ERROR: '.$e->getMessage().'</error>');
 
             return Command::FAILURE;
         }
@@ -81,24 +91,39 @@ class SyncMediaCommand extends Command
 
         try {
             $collaborateToken = $this->collaborateAPIAuth->getToken();
-            $output->writeln('DONE');
-        } catch (\Exception $exception) {
-            $output->writeln('<error>ERROR: '.$exception->getMessage().'</error>');
+            $output->writeln('Connected.');
+        } catch (\Exception $e) {
+            $output->writeln('<error>ERROR: '.$e->getMessage().'</error>');
 
             return Command::FAILURE;
         }
 
-        $output->writeln('<info>STEP 3: Getting list of courses from Blackboard Learn</info>');
-        $courses = $this->learnAPICourse->getIdsFromCourses($learnToken);
-        $coursesIds = array_keys($courses);
-        $output->writeln('Courses found '.count($courses));
+        $output->writeln(sprintf('<info>STEP 3: Loading up to %d courses with status=pending_recordings</info>', $limit));
+        $courses = $this->courseManager->findPendingRecordings($limit);
+        $total = count($courses);
+        $output->writeln(sprintf('Courses to process: %d', $total));
 
-        $output->writeln('<info>STEP 4: Getting course recordings from Blackboard Collaborate</info>');
-        $courseRecordings = $this->courseRecordings($coursesIds, $collaborateToken);
-        $output->writeln('Recordings found '.count($courseRecordings));
+        if (0 === $total) {
+            $output->writeln('<comment>No pending courses. Run pumukit:blackboard:sync-courses first.</comment>');
 
-        $output->writeln('<info>STEP 5: Save recording data on PuMuKIT</info>');
-        $this->saveRecordings($courseRecordings, $courses, $output, $collaborateToken, $learnToken);
+            return Command::SUCCESS;
+        }
+
+        $output->writeln('<info>STEP 4: Fetching recordings and saving to PuMuKIT</info>');
+
+        foreach ($courses as $index => $course) {
+            $output->writeln('');
+            $output->writeln(sprintf('<info>[%d/%d] Course: %s (%s)</info>', $index + 1, $total, $course->name(), $course->collaborateId()));
+
+            try {
+                $this->processCourse($course, $collaborateToken, $learnToken, $output);
+            } catch (\Exception $e) {
+                $this->courseManager->markAsError($course, $e->getMessage());
+                $output->writeln('<error>ERROR: '.$e->getMessage().'</error>');
+            }
+
+            usleep(self::SLEEP_MS * 1000);
+        }
 
         if (!empty($this->errors)) {
             $output->writeln('');
@@ -112,68 +137,69 @@ class SyncMediaCommand extends Command
         return Command::SUCCESS;
     }
 
-    private function courseRecordings(array $courses, string $collaborateToken): array
+    private function processCourse(BlackboardCourse $course, string $collaborateToken, string $learnToken, OutputInterface $output): void
     {
-        $courseRecordings = [];
-        foreach ($courses as $course) {
-            $this->output->writeln('<info>---> Getting recordings for course '.$course.'</info>');
-            $courseData = $this->collaborateAPICourseRecordings->getCourseRecordings($collaborateToken, $course);
-            if (isset($courseData['results']) && 0 !== count($courseData['results'])) {
-                $this->output->writeln('---> Recordings found for course '.$course.': '.count($courseData['results']));
-                $courseRecordings[$course] = $courseData['results'];
-            } else {
-                $this->output->writeln('---> No recordings found for course '.$course);
-            }
+        $courseData = $this->collaborateAPICourseRecordings->getCourseRecordings($collaborateToken, $course->collaborateId());
+
+        if (empty($courseData['results'])) {
+            $output->writeln(' ---> No recordings found. Marking as done.');
+            $this->courseManager->markAsDone($course);
+
+            return;
         }
 
-        return $courseRecordings;
-    }
+        $recordings = $courseData['results'];
+        $output->writeln(sprintf(' ---> %d recording(s) found.', count($recordings)));
 
-    private function saveRecordings(array $courseRecordings, array $courses, OutputInterface $output, string $collaborateToken, string $learnToken): void
-    {
-        foreach ($courseRecordings as $key => $recordings) {
-            foreach ($recordings as $element) {
-                $output->writeln('');
-                $output->writeln('<info> ---> STEP 5.1: Getting data from recording '.$element['id'].'</info>');
+        foreach ($recordings as $element) {
+            $output->writeln(sprintf(' ---> Processing recording %s', $element['id']));
 
-                if ($this->collaborateCreateRecording->alreadyExists($element['id'])) {
-                    $output->writeln('<comment> ---> STEP 5.1: Recording '.$element['id'].' already exists, skipping</comment>');
+            if ($this->collaborateCreateRecording->alreadyExists($element['id'])) {
+                $output->writeln('<comment> ---> Already exists, skipping.</comment>');
 
-                    continue;
-                }
-
-                if (false === $element['publicLinkAllowed']) {
-                    continue;
-                }
-
-                $recording = $this->collaborateAPIRecording->getRecordingData($collaborateToken, $element['id']);
-                if (!$recording) {
-                    $output->writeln('<comment> ---> STEP 5.2: Recording not found</comment>');
-                    $output->writeln('');
-
-                    continue;
-                }
-
-                try {
-                    $downloadUrl = $this->collaborateAPIRecording->generateDownloadURL($recording);
-                } catch (\Exception $exception) {
-                    $output->writeln('<comment> ---> STEP 5.2: Cannot generate download url</comment>');
-
-                    continue;
-                }
-
-                $title = $recording['name'];
-                $created = $recording['created'];
-
-                $collaborateRecording = CollaborateRecording::create($element['id'], $key, $courses[$key], $downloadUrl, $element['sessionName'], $title, $created);
-                $owners = $this->recordingOwners($element['sessionName'], $collaborateToken, $learnToken);
-                $collaborateRecording->addOwners($owners);
-
-                $recording = $this->collaborateCreateRecording->create($collaborateRecording);
-
-                $output->writeln(' ---> STEP 5.2: Saved collaborate recording with ID '.$recording->recording());
+                continue;
             }
+
+            if (false === $element['publicLinkAllowed']) {
+                $output->writeln('<comment> ---> publicLinkAllowed=false, skipping.</comment>');
+
+                continue;
+            }
+
+            $recordingData = $this->collaborateAPIRecording->getRecordingData($collaborateToken, $element['id']);
+            if (!$recordingData) {
+                $output->writeln('<comment> ---> Recording data not found, skipping.</comment>');
+
+                continue;
+            }
+
+            try {
+                $downloadUrl = $this->collaborateAPIRecording->generateDownloadURL($recordingData);
+            } catch (\Exception $e) {
+                $output->writeln('<comment> ---> Cannot generate download URL, skipping.</comment>');
+
+                continue;
+            }
+
+            $collaborateRecording = CollaborateRecording::create(
+                $element['id'],
+                $course->collaborateId(),
+                $course->name(),
+                $downloadUrl,
+                $element['sessionName'],
+                $recordingData['name'],
+                $recordingData['created']
+            );
+
+            $owners = $this->recordingOwners($element['sessionName'], $collaborateToken, $learnToken);
+            $collaborateRecording->addOwners($owners);
+
+            $saved = $this->collaborateCreateRecording->create($collaborateRecording);
+            $output->writeln(sprintf(' ---> Saved with ID %s', $saved->recording()));
         }
+
+        $this->courseManager->markAsPendingImport($course, count($recordings));
+        $output->writeln(sprintf(' ---> Course marked as pending_import (%d recordings).', count($recordings)));
     }
 
     private function recordingOwners(string $sessionName, string $collaborateToken, string $learnToken): array
@@ -185,13 +211,12 @@ class SyncMediaCommand extends Command
 
         if (false === $index || !isset($sessions['results'][$index]['id'])) {
             $this->errors[] = 'Session not found for name: "'.$sessionName.'"';
-            $this->output->writeln('<comment> ---> WARNING: Session not found for name "'.$sessionName.'", skipping owners</comment>');
+            $this->output->writeln('<comment> ---> WARNING: Session not found for name "'.$sessionName.'", skipping owners.</comment>');
 
             return [];
         }
 
         $sessionId = $sessions['results'][$index]['id'];
-
         $enrollments = $this->collaborateAPISessionSearch->getEnrollmentsBySessionId($collaborateToken, $sessionId);
 
         $owners = [];
@@ -206,9 +231,9 @@ class SyncMediaCommand extends Command
             try {
                 $collabUser = $this->collaborateAPIUser->searchUser($collaborateToken, $owner);
                 $user = $this->learnAPIUser->searchUserById($learnToken, $collabUser['extId']);
-            } catch (\Exception $exception) {
-                $this->errors[] = 'Error getting user data for owner "'.$owner.'": '.$exception->getMessage();
-                $this->output->writeln('<comment> ---> WARNING: Skipping owner "'.$owner.'": '.$exception->getMessage().'</comment>');
+            } catch (\Exception $e) {
+                $this->errors[] = 'Error getting user data for owner "'.$owner.'": '.$e->getMessage();
+                $this->output->writeln('<comment> ---> WARNING: Skipping owner "'.$owner.'": '.$e->getMessage().'</comment>');
 
                 continue;
             }

@@ -16,23 +16,37 @@ class LearnAPICourse
         $this->configuration = $configuration;
     }
 
-    public function getIdsFromCourses(string $accessToken): array
+    public function getCourses(string $accessToken): array
     {
-        $courseIds = [];
-        $url = $this->configuration->apiCourseListUrl();
+        $courses = [];
+        $url = $this->configuration->apiCourseListUrl().'?sort=modified&order=desc';
 
         do {
             $coursesResponse = $this->listCourses($accessToken, $url);
-            $courses = json_decode($coursesResponse, true);
+            $data = json_decode($coursesResponse, true);
 
-            foreach ($courses['results'] as $course) {
-                $courseIds[$course['uuid']] = $course['name'];
+            foreach ($data['results'] as $course) {
+                $courses[] = [
+                    'learnId' => $course['id'],
+                    'collaborateId' => $course['uuid'],
+                    'name' => $course['name'],
+                ];
             }
 
-            $url = isset($courses['paging']['nextPage'])
-                ? $this->configuration->host().$courses['paging']['nextPage']
+            $url = isset($data['paging']['nextPage'])
+                ? $this->configuration->host().$data['paging']['nextPage']
                 : null;
         } while (null !== $url);
+
+        return $courses;
+    }
+
+    public function getIdsFromCourses(string $accessToken): array
+    {
+        $courseIds = [];
+        foreach ($this->getCourses($accessToken) as $course) {
+            $courseIds[$course['collaborateId']] = $course['name'];
+        }
 
         return $courseIds;
     }

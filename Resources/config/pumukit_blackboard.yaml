@@ -50,3 +50,7 @@ services:
 
   Pumukit\BlackboardBundle\Services\CollaborateAPIUser:
     class: Pumukit\BlackboardBundle\Services\CollaborateAPIUser
+
+  Pumukit\BlackboardBundle\Services\BlackboardCourseManager:
+    class: Pumukit\BlackboardBundle\Services\BlackboardCourseManager
+
