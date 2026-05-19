@@ -4,6 +4,8 @@ namespace Pumukit\BlackboardBundle\Command;
 
 use Doctrine\ODM\MongoDB\DocumentManager;
 use Pumukit\BlackboardBundle\Document\CollaborateRecording;
+use Pumukit\BlackboardBundle\Services\CollaborateAPIAuth;
+use Pumukit\BlackboardBundle\Services\CollaborateAPIRecording;
 use Pumukit\CoreBundle\Services\i18nService;
 use Pumukit\EncoderBundle\Services\DTO\JobOptions;
 use Pumukit\EncoderBundle\Services\JobCreator;
@@ -33,6 +35,8 @@ class ImportRecordingsCommand extends Command
     private JobCreator $jobCreator;
     private i18nService $i18nService;
     private UserService $userService;
+    private CollaborateAPIAuth $collaborateAPIAuth;
+    private CollaborateAPIRecording $collaborateAPIRecording;
     private $tmpPath;
 
     public function __construct(
@@ -42,6 +46,8 @@ class ImportRecordingsCommand extends Command
         JobCreator $jobCreator,
         i18nService $i18nService,
         UserService $userService,
+        CollaborateAPIAuth $collaborateAPIAuth,
+        CollaborateAPIRecording $collaborateAPIRecording,
         string $tmpPath,
         ?string $name = null
     ) {
@@ -51,6 +57,8 @@ class ImportRecordingsCommand extends Command
         $this->jobCreator = $jobCreator;
         $this->i18nService = $i18nService;
         $this->userService = $userService;
+        $this->collaborateAPIAuth = $collaborateAPIAuth;
+        $this->collaborateAPIRecording = $collaborateAPIRecording;
         $this->tmpPath = $tmpPath;
 
         parent::__construct($name);
@@ -79,6 +87,14 @@ class ImportRecordingsCommand extends Command
             $output->writeln('<comment>Fallback full-download mode is enabled.</comment>');
         }
 
+        try {
+            $collaborateToken = $this->collaborateAPIAuth->getToken();
+        } catch (\Exception $e) {
+            $output->writeln(sprintf('<error>Could not authenticate with Collaborate API: %s</error>', $e->getMessage()));
+
+            return Command::FAILURE;
+        }
+
         $countImported = 0;
         $countSkipped = 0;
         $countErrors = 0;
@@ -99,13 +115,7 @@ class ImportRecordingsCommand extends Command
                     continue;
                 }
 
-                $pathFile = $this->downloadRecording($recording);
-                if (null === $pathFile) {
-                    $output->writeln(sprintf(' ---> [ERROR] Could not download recording %s. Skipping.', $recordingId));
-                    ++$countErrors;
-
-                    continue;
-                }
+                $pathFile = $this->downloadRecording($recording, $collaborateToken);
 
                 $series = $this->getSeries($recording);
                 $multimediaObject = $this->factoryService->createMultimediaObject($series, true, reset($users));
@@ -177,26 +187,23 @@ class ImportRecordingsCommand extends Command
         ;
     }
 
-    /**
-     * Streams the remote file to disk chunk by chunk to avoid loading large files into memory.
-     *
-     * The Symfony HttpClient stream yields three kinds of chunks:
-     *   - isFirst(): only headers, no body content → skip it.
-     *   - isLast():  signals end of stream, may or may not carry content → write + stop.
-     *   - otherwise: regular body data → write to disk.
-     *
-     * If streaming fails and --fallback-full-download is enabled, the full file is downloaded
-     * into memory as a last resort.
-     */
-    private function downloadRecording(CollaborateRecording $recording): ?Path
+    private function downloadRecording(CollaborateRecording $recording, string $collaborateToken): Path
     {
-        $data = parse_url($recording->downloadUrl());
+        $recordingData = $this->collaborateAPIRecording->getRecordingData($collaborateToken, $recording->recording());
+        if (!$recordingData) {
+            throw new \RuntimeException('Could not retrieve recording data from Collaborate API.');
+        }
+
+        $freshUrl = $this->collaborateAPIRecording->generateDownloadURL($recordingData);
+
+        $data = parse_url($freshUrl);
         $extension = pathinfo($data['path'] ?? '', PATHINFO_EXTENSION);
         $filePath = $this->tmpPath.'/'.$recording->recording().($extension ? '.'.$extension : '');
 
-        $response = $this->httpClient->request('GET', $recording->downloadUrl());
-        if (Response::HTTP_OK !== $response->getStatusCode()) {
-            return null;
+        $response = $this->httpClient->request('GET', $freshUrl);
+        $statusCode = $response->getStatusCode();
+        if (Response::HTTP_OK !== $statusCode) {
+            throw new \RuntimeException(sprintf('Download URL returned HTTP %d.', $statusCode));
         }
 
         try {
@@ -206,8 +213,7 @@ class ImportRecordingsCommand extends Command
                 throw $streamException;
             }
 
-            // Streaming failed — retry with a full in-memory download
-            return $this->fullDownloadToFile($recording, $filePath);
+            return $this->fullDownloadToFile($freshUrl, $filePath);
         }
     }
 
@@ -254,15 +260,12 @@ class ImportRecordingsCommand extends Command
         return Path::create($filePath);
     }
 
-    /**
-     * Fallback: downloads the full response body into memory and writes it to disk in one shot.
-     * Only used when streaming fails and --fallback-full-download is enabled.
-     */
-    private function fullDownloadToFile(CollaborateRecording $recording, string $filePath): ?Path
+    private function fullDownloadToFile(string $url, string $filePath): Path
     {
-        $response = $this->httpClient->request('GET', $recording->downloadUrl());
-        if (Response::HTTP_OK !== $response->getStatusCode()) {
-            return null;
+        $response = $this->httpClient->request('GET', $url);
+        $statusCode = $response->getStatusCode();
+        if (Response::HTTP_OK !== $statusCode) {
+            throw new \RuntimeException(sprintf('Fallback download URL returned HTTP %d.', $statusCode));
         }
 
         $content = $response->getContent();
