@@ -151,6 +151,8 @@ class SyncMediaCommand extends Command
         $recordings = $courseData['results'];
         $output->writeln(sprintf(' ---> %d recording(s) found.', count($recordings)));
 
+        $newRecordings = 0;
+
         foreach ($recordings as $element) {
             $output->writeln(sprintf(' ---> Processing recording %s', $element['id']));
 
@@ -195,7 +197,18 @@ class SyncMediaCommand extends Command
             $collaborateRecording->addOwners($owners);
 
             $saved = $this->collaborateCreateRecording->create($collaborateRecording);
+            ++$newRecordings;
             $output->writeln(sprintf(' ---> Saved with ID %s', $saved->recording()));
+        }
+
+        if (0 === $newRecordings) {
+            $this->courseManager->markAsDone($course);
+
+            $output->writeln(
+                ' ---> No new recordings found. Marking as done.'
+            );
+
+            return;
         }
 
         $this->courseManager->markAsPendingImport($course, count($recordings));
