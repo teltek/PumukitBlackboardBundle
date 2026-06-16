@@ -18,6 +18,7 @@ class BlackboardCourseRepository extends DocumentRepository
     {
         return $this->createQueryBuilder()
             ->field('status')->equals(BlackboardCourse::STATUS_PENDING_RECORDINGS)
+            ->sort('lastRecordingsCheckAt', 'asc')
             ->limit($limit)
             ->getQuery()
             ->execute()

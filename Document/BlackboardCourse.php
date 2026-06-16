@@ -55,6 +55,11 @@ class BlackboardCourse
     private \DateTime $lastSyncAt;
 
     /**
+     * @MongoDB\Field(type="date", nullable=true)
+     */
+    private ?\DateTime $lastRecordingsCheckAt = null;
+
+    /**
      * @MongoDB\Field(type="string", nullable=true)
      */
     private ?string $errorMessage = null;
@@ -148,5 +153,10 @@ class BlackboardCourse
         $this->status = self::STATUS_ERROR;
         $this->errorMessage = $errorMessage;
         $this->lastSyncAt = new \DateTime();
+    }
+
+    public function markRecordingsChecked(): void
+    {
+        $this->lastRecordingsCheckAt = new \DateTime();
     }
 }
