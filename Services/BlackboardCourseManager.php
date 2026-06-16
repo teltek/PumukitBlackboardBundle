@@ -69,4 +69,9 @@ class BlackboardCourseManager
         $course->markAsError($errorMessage);
         $this->documentManager->flush();
     }
+
+    public function markRecordingsChecked(BlackboardCourse $course): void
+    {
+        $course->markRecordingsChecked();
+    }
 }

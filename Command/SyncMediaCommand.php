@@ -143,6 +143,7 @@ class SyncMediaCommand extends Command
 
         if (empty($courseData['results'])) {
             $output->writeln(' ---> No recordings found. Marking as done.');
+            $this->courseManager->markRecordingsChecked($course);
             $this->courseManager->markAsDone($course);
 
             return;
@@ -202,6 +203,7 @@ class SyncMediaCommand extends Command
         }
 
         if (0 === $newRecordings) {
+            $this->courseManager->markRecordingsChecked($course);
             $this->courseManager->markAsDone($course);
 
             $output->writeln(
@@ -211,6 +213,7 @@ class SyncMediaCommand extends Command
             return;
         }
 
+        $this->courseManager->markRecordingsChecked($course);
         $this->courseManager->markAsPendingImport($course, count($recordings));
         $output->writeln(sprintf(' ---> Course marked as pending_import (%d recordings).', count($recordings)));
     }
