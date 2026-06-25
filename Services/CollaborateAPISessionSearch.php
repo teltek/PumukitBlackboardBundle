@@ -66,7 +66,7 @@ class CollaborateAPISessionSearch
                         'limit' => $limit,
                     ],
                     'headers' => [
-                        'Authorization' => 'Bearer ' . $accessToken,
+                        'Authorization' => 'Bearer '.$accessToken,
                         'Accept' => 'application/json',
                     ],
                 ]
@@ -74,7 +74,7 @@ class CollaborateAPISessionSearch
 
             if (Response::HTTP_OK !== $response->getStatusCode()) {
                 throw new \Exception(
-                    'Unable to get session. Response status code: ' . $response->getStatusCode()
+                    'Unable to get session. Response status code: '.$response->getStatusCode()
                 );
             }
 
@@ -87,15 +87,15 @@ class CollaborateAPISessionSearch
     private function sessionById(string $accessToken, string $sesionId): ?string
     {
         try {
-            $response = $this->client->request('GET', $this->configuration->sessionDataUrl() . '/' . $sesionId . '/enrollments', [
+            $response = $this->client->request('GET', $this->configuration->sessionDataUrl().'/'.$sesionId.'/enrollments', [
                 'headers' => [
-                    'Authorization' => 'Bearer ' . $accessToken,
+                    'Authorization' => 'Bearer '.$accessToken,
                     'Accept' => 'application/json',
                 ],
             ]);
 
             if (Response::HTTP_OK !== $response->getStatusCode()) {
-                throw new \Exception('Unable to get session. Response status code: ' . $response->getStatusCode());
+                throw new \Exception('Unable to get session. Response status code: '.$response->getStatusCode());
             }
 
             return $response->getContent();
