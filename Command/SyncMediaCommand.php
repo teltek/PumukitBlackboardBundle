@@ -36,6 +36,7 @@ class SyncMediaCommand extends Command
     private BlackboardCourseManager $courseManager;
     private OutputInterface $output;
     private array $errors = [];
+    private array $sessionsByName = [];
 
     public function __construct(
         LearnAPIAuth $learnAPIAuth,
@@ -98,7 +99,21 @@ class SyncMediaCommand extends Command
             return Command::FAILURE;
         }
 
-        $output->writeln(sprintf('<info>STEP 3: Loading up to %d courses with status=pending_recordings</info>', $limit));
+        $output->writeln(sprintf('<info>STEP 3: Loading Collaborate sessions...</info>', $limit));
+        $allSessions = $this->collaborateAPISessionSearch->searchSessions($collaborateToken);
+
+        foreach ($allSessions['results'] as $session) {
+            if (isset($session['name'], $session['id'])) {
+                $this->sessionsByName[$session['name']] = $session;
+            }
+        }
+
+        $output->writeln(sprintf(
+            'Loaded %d sessions.',
+            count($this->sessionsByName)
+        ));
+
+        $output->writeln(sprintf('<info>STEP 4: Loading up to %d courses with status=pending_recordings</info>', $limit));
         $courses = $this->courseManager->findPendingRecordings($limit);
         $total = count($courses);
         $output->writeln(sprintf('Courses to process: %d', $total));
@@ -109,7 +124,7 @@ class SyncMediaCommand extends Command
             return Command::SUCCESS;
         }
 
-        $output->writeln('<info>STEP 4: Fetching recordings and saving to PuMuKIT</info>');
+        $output->writeln('<info>STEP 5: Fetching recordings and saving to PuMuKIT</info>');
 
         foreach ($courses as $index => $course) {
             $output->writeln('');
@@ -220,19 +235,17 @@ class SyncMediaCommand extends Command
 
     private function recordingOwners(string $sessionName, string $collaborateToken, string $learnToken): array
     {
-        $sessions = $this->collaborateAPISessionSearch->searchSessions($collaborateToken);
-
-        $sessionsResults = array_column($sessions['results'], 'name');
-        $index = array_search($sessionName, $sessionsResults);
-
-        if (false === $index || !isset($sessions['results'][$index]['id'])) {
+        if (!isset($this->sessionsByName[$sessionName])) {
             $this->errors[] = 'Session not found for name: "'.$sessionName.'"';
-            $this->output->writeln('<comment> ---> WARNING: Session not found for name "'.$sessionName.'", skipping owners.</comment>');
+
+            $this->output->writeln(
+                '<comment> ---> WARNING: Session not found for name "'.$sessionName.'", skipping owners.</comment>'
+            );
 
             return [];
         }
 
-        $sessionId = $sessions['results'][$index]['id'];
+        $sessionId = $this->sessionsByName[$sessionName]['id'];
         $enrollments = $this->collaborateAPISessionSearch->getEnrollmentsBySessionId($collaborateToken, $sessionId);
 
         $owners = [];
@@ -254,10 +267,22 @@ class SyncMediaCommand extends Command
                 continue;
             }
 
-            if (!isset($user['contact']['institutionEmail'])) {
+            $email = $user['contact']['institutionEmail']
+                ?? $user['contact']['email']
+                ?? null;
+
+            if (null === $email) {
+                $this->output->writeln(
+                    sprintf(
+                        ' ---> No email found for user %s',
+                        $user['userName'] ?? 'unknown'
+                    )
+                );
+
                 continue;
             }
-            $users[$user['contact']['institutionEmail']] = $user['userName'];
+
+            $users[$email] = $user['userName'];
         }
 
         return $users;
