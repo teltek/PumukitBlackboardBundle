@@ -267,22 +267,11 @@ class SyncMediaCommand extends Command
                 continue;
             }
 
-            $email = $user['contact']['institutionEmail']
-                ?? $user['contact']['email']
-                ?? null;
-
-            if (null === $email) {
-                $this->output->writeln(
-                    sprintf(
-                        ' ---> No email found for user %s',
-                        $user['userName'] ?? 'unknown'
-                    )
-                );
-
+            if (!isset($user['contact']['institutionEmail'])) {
                 continue;
             }
 
-            $users[$email] = $user['userName'];
+            $users[$user['contact']['institutionEmail']] = $user['userName'];
         }
 
         return $users;
