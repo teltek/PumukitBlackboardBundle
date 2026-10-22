@@ -18,9 +18,9 @@
     ],
     "require": {
         "php": "^8.2",
-        "pumukit/pumukit": "^5.0",
-        "symfony/http-client": "^5.0",
-        "firebase/php-jwt": "^6.10"
+        "pumukit/pumukit": "^6.0",
+        "symfony/http-client": "*",
+        "firebase/php-jwt": "^7.0"
     },
     "autoload": {
         "psr-4": {
