@@ -7,11 +7,8 @@ namespace Pumukit\BlackboardBundle\Document;
 use Doctrine\ODM\MongoDB\Mapping\Annotations as MongoDB;
 use MongoDB\BSON\ObjectId;
 
-/**
- * @MongoDB\Document(repositoryClass="Pumukit\BlackboardBundle\Repository\BlackboardCourseRepository")
- *
- * @MongoDB\Index(keys={"collaborateId"="asc"}, options={"unique"=true})
- */
+#[MongoDB\Document(repositoryClass: 'Pumukit\BlackboardBundle\Repository\BlackboardCourseRepository')]
+#[MongoDB\Index(keys: ['collaborateId' => 'asc'], options: ['unique' => true])]
 class BlackboardCourse
 {
     public const STATUS_PENDING_RECORDINGS = 0;
@@ -19,49 +16,31 @@ class BlackboardCourse
     public const STATUS_DONE = 2;
     public const STATUS_ERROR = 3;
 
-    /**
-     * @MongoDB\Id
-     */
+    #[MongoDB\Id]
     private $id;
 
-    /**
-     * @MongoDB\Field(type="string")
-     */
+    #[MongoDB\Field(type: 'string')]
     private string $learnId;
 
-    /**
-     * @MongoDB\Field(type="string")
-     */
+    #[MongoDB\Field(type: 'string')]
     private string $collaborateId;
 
-    /**
-     * @MongoDB\Field(type="string")
-     */
+    #[MongoDB\Field(type: 'string')]
     private string $name;
 
-    /**
-     * @MongoDB\Field(type="int")
-     */
+    #[MongoDB\Field(type: 'int')]
     private int $status;
 
-    /**
-     * @MongoDB\Field(type="int")
-     */
+    #[MongoDB\Field(type: 'int')]
     private int $recordingsCount = 0;
 
-    /**
-     * @MongoDB\Field(type="date")
-     */
+    #[MongoDB\Field(type: 'date')]
     private \DateTime $lastSyncAt;
 
-    /**
-     * @MongoDB\Field(type="date", nullable=true)
-     */
+    #[MongoDB\Field(type: 'date', nullable: true)]
     private ?\DateTime $lastRecordingsCheckAt = null;
 
-    /**
-     * @MongoDB\Field(type="string", nullable=true)
-     */
+    #[MongoDB\Field(type: 'string', nullable: true)]
     private ?string $errorMessage = null;
 
     private function __construct(string $learnId, string $collaborateId, string $name)

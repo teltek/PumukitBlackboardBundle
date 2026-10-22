@@ -5,59 +5,37 @@ namespace Pumukit\BlackboardBundle\Document;
 use Doctrine\ODM\MongoDB\Mapping\Annotations as MongoDB;
 use MongoDB\BSON\ObjectId;
 
-/**
- * @MongoDB\Document(repositoryClass="Pumukit\BlackboardBundle\Repository\CollaborateRecordingRepository")
- */
+#[MongoDB\Document(repositoryClass: 'Pumukit\BlackboardBundle\Repository\CollaborateRecordingRepository')]
 class CollaborateRecording
 {
-    /**
-     * @MongoDB\Id
-     */
+    #[MongoDB\Id]
     private $id;
 
-    /**
-     * @MongoDB\Field(type="string")
-     */
+    #[MongoDB\Field(type: 'string')]
     private $recording;
 
-    /**
-     * @MongoDB\Field(type="string")
-     */
+    #[MongoDB\Field(type: 'string')]
     private $courseUUID;
 
-    /**
-     * @MongoDB\Field(type="string")
-     */
+    #[MongoDB\Field(type: 'string')]
     private $courseName;
 
-    /**
-     * @MongoDB\Field(type="string")
-     */
+    #[MongoDB\Field(type: 'string')]
     private $downloadUrl;
 
-    /**
-     * @MongoDB\Field(type="string")
-     */
+    #[MongoDB\Field(type: 'string')]
     private $sessionName;
 
-    /**
-     * @MongoDB\Field(type="boolean")
-     */
+    #[MongoDB\Field(type: 'boolean')]
     private $imported;
 
-    /**
-     * @MongoDB\Field(type="string")
-     */
+    #[MongoDB\Field(type: 'string')]
     private $title;
 
-    /**
-     * @MongoDB\Field(type="date")
-     */
+    #[MongoDB\Field(type: 'date')]
     private $created;
 
-    /**
-     * @MongoDB\Field(type="raw")
-     */
+    #[MongoDB\Field(type: 'raw')]
     private $owners;
 
     private function __construct(\Pumukit\BlackboardBundle\ValueObject\CollaborateRecording $recording)
