@@ -1,20 +1,48 @@
 # BlackboardBundle
 
-This bundle downloads recordings saved on Blackboard Collaborate from Blackboard Learn and imports them into PuMuKIT.
+Bundle for the [PuMuKIT Video Platform 6.0](https://github.com/pumukit/PuMuKIT/tree/6.0.x) or higher. It downloads
+the recordings saved on Blackboard Collaborate for the courses of Blackboard Learn and imports them into PuMuKIT.
+
+## Installation
+
+```bash
+composer require teltek/pumukit-blackboard-bundle
+```
+
+If Symfony Flex does not do it, add the bundle to `config/bundles.php`:
+
+```php
+Pumukit\BlackboardBundle\PumukitBlackboardBundle::class => ['all' => true],
+```
+
+Create the indexes of its collections:
+
+```bash
+php bin/console doctrine:mongodb:schema:update
+```
 
 ## Configuration
 
-Add the following to your PuMuKIT configuration:
+Keep the keys out of the repository, as environment variables or Symfony secrets:
 
 ```yaml
 pumukit_blackboard:
-    learn_host: https://{blackboard_learn_domain}
-    learn_key: {blackboard_api_learn_key}
-    learn_secret: {blackboard_api_learn_secret}
-    collaborate_host: https://{blackboard_collaborate_domain}
-    collaborate_key: {blackboard_building_block_collaborate_key}
-    collaborate_secret: {blackboard_building_block_collaborate_secret}
+    enable: true
+    learn_host: 'https://{blackboard_learn_domain}'
+    learn_key: '%env(BLACKBOARD_LEARN_KEY)%'
+    learn_secret: '%env(BLACKBOARD_LEARN_SECRET)%'
+    collaborate_host: 'https://{blackboard_collaborate_domain}'
+    collaborate_key: '%env(BLACKBOARD_COLLABORATE_KEY)%'
+    collaborate_secret: '%env(BLACKBOARD_COLLABORATE_SECRET)%'
 ```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `enable` | `true` | If false, the commands do nothing and the credentials are not required |
+| `learn_host`, `learn_key`, `learn_secret` | (required if enabled) | Host and application of the Learn REST API |
+| `collaborate_host`, `collaborate_key`, `collaborate_secret` | (required if enabled) | Host, key and secret of the Collaborate REST API |
+
+The access tokens of both APIs are renewed when they expire, so long runs do not fail halfway.
 
 ## How it works
 
@@ -58,7 +86,7 @@ The import process is split into three independent commands. Each command only d
 php bin/console pumukit:blackboard:sync-courses
 ```
 
-Fetches the full course catalogue from Blackboard Learn (sorted by `modified` descending) and persists it in MongoDB. Safe to re-run: new courses are inserted as `pending_recordings`; existing ones update their metadata without losing their current status, except `done` courses which are re-queued to check for new recordings.
+Fetches the full course catalogue from Blackboard Learn (sorted by `modified` descending) and persists it in MongoDB. Safe to re-run: new courses are inserted as `pending_recordings`; existing ones update their name and are re-queued as `pending_recordings` to check for new recordings, including the courses in `error`.
 
 ---
 
@@ -68,7 +96,7 @@ Fetches the full course catalogue from Blackboard Learn (sorted by `modified` de
 php bin/console pumukit:blackboard:sync-recordings [--limit=N]
 ```
 
-Processes courses in `pending_recordings` status. For each course it queries Blackboard Collaborate, saves the found recordings in PuMuKIT and transitions the course to `pending_import` (recordings found) or `done` (no recordings). If a request fails the course is marked as `error` and the next one is processed.
+Loads the Collaborate sessions once (paginated) and processes the courses in `pending_recordings` status. For each course it queries Blackboard Collaborate, saves the found recordings in PuMuKIT and transitions the course to `pending_import` (recordings found) or `done` (no recordings). If a request fails the course is marked as `error` and the next one is processed. The owners of a recording are the moderators of its session (matched by name) with an institution email in Learn.
 
 | Option | Default | Description |
 |--------|---------|-------------|
@@ -82,7 +110,7 @@ Processes courses in `pending_recordings` status. For each course it queries Bla
 php bin/console pumukit:blackboard:import:recordings [--fallback-full-download]
 ```
 
-Downloads and ingests into PuMuKIT all recordings with `imported=false`. Requires the recording to have at least one owner with a matching PuMuKIT user account.
+Downloads and ingests into PuMuKIT all recordings with `imported=false`. Requires the recording to have at least one owner with a matching PuMuKIT user (by email) that has a person. Every matching user is added as owner of the multimedia object. If the job cannot be created, the multimedia object and the downloaded file are removed and the recording is retried in the next run; a recording that already has a multimedia object (`properties.blackboard_recording`) is only marked as imported.
 
 | Option | Description |
 |--------|-------------|
@@ -104,3 +132,14 @@ Downloads and ingests into PuMuKIT all recordings with `imported=false`. Require
 ```
 
 > **Note:** Adjust `--limit` in Step 2 based on the Blackboard Collaborate API rate limits of your institution. Start conservatively (50–100) and increase if no blocking occurs.
+
+## Upgrading from 1.0.x (PuMuKIT 5)
+
+- The commands are `pumukit:blackboard:sync-courses`, `pumukit:blackboard:sync-recordings` and
+  `pumukit:blackboard:import:recordings`: crontabs with `pumukit:blackboard:sync` must be updated.
+- New `enable` option. The credentials are only required when it is true.
+- Run `doctrine:mongodb:schema:update` to create the new indexes. The `recording` index is unique: if the
+  `CollaborateRecording` collection has duplicated recordings, remove them first.
+- The courses in `error` are queued again on the next `sync-courses`.
+- The second and later owners of a recording are added as the back-office adds an owner, so they are also
+  listed in the `owners` property of the multimedia object and its series.
