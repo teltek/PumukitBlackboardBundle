@@ -11,12 +11,14 @@ use Pumukit\BlackboardBundle\Services\CollaborateAPIRecording;
 use Pumukit\CoreBundle\Services\i18nService;
 use Pumukit\EncoderBundle\Services\DTO\JobOptions;
 use Pumukit\EncoderBundle\Services\JobCreator;
+use Pumukit\SchemaBundle\Document\MultimediaObject;
+use Pumukit\SchemaBundle\Document\Person;
 use Pumukit\SchemaBundle\Document\Role;
 use Pumukit\SchemaBundle\Document\Series;
 use Pumukit\SchemaBundle\Document\User;
 use Pumukit\SchemaBundle\Document\ValueObject\Path;
 use Pumukit\SchemaBundle\Services\FactoryService;
-use Pumukit\SchemaBundle\Services\UserService;
+use Pumukit\SchemaBundle\Services\PersonService;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -39,7 +41,7 @@ class ImportRecordingsCommand extends Command
         private readonly FactoryService $factoryService,
         private readonly JobCreator $jobCreator,
         private readonly i18nService $i18nService,
-        private readonly UserService $userService,
+        private readonly PersonService $personService,
         private readonly CollaborateAPIAuth $collaborateAPIAuth,
         private readonly CollaborateAPIRecording $collaborateAPIRecording,
         private readonly string $tmpPath,
@@ -69,7 +71,7 @@ class ImportRecordingsCommand extends Command
         }
 
         try {
-            $collaborateToken = $this->collaborateAPIAuth->getToken();
+            $this->collaborateAPIAuth->getToken();
         } catch (\Exception $e) {
             $output->writeln(sprintf('<error>Could not authenticate with Collaborate API: %s</error>', $e->getMessage()));
 
@@ -86,33 +88,46 @@ class ImportRecordingsCommand extends Command
             $output->writeln(sprintf('<info>[%s] Processing recording...</info>', $recordingId));
 
             $cleared = false;
+            $pathFile = null;
+            $multimediaObject = null;
+            $jobCreated = false;
 
             try {
-                $users = $this->isValidToImport($recording);
-                if (empty($users)) {
-                    $output->writeln(sprintf(' ---> [WARNING] Recording %s has no owners on PuMuKIT. Skipping.', $recordingId));
+                if ($this->alreadyImported($recordingId)) {
+                    $recording->markAsImported();
+                    $this->documentManager->flush();
+                    $output->writeln(sprintf(' ---> [WARNING] Recording %s was already imported. Marking it.', $recordingId));
                     ++$countSkipped;
 
                     continue;
                 }
 
-                $pathFile = $this->downloadRecording($recording, $collaborateToken);
+                $users = $this->isValidToImport($recording);
+                if (empty($users)) {
+                    $output->writeln(sprintf(' ---> [WARNING] Recording %s has no owners with a person on PuMuKIT. Skipping.', $recordingId));
+                    ++$countSkipped;
+
+                    continue;
+                }
+
+                $pathFile = $this->downloadRecording($recording, $this->collaborateAPIAuth->getToken());
 
                 $series = $this->getSeries($recording);
                 $multimediaObject = $this->factoryService->createMultimediaObject($series, true, reset($users));
-                $i18nTitle = $this->i18nService->generateI18nText($recording->title());
-                $multimediaObject->setI18nTitle($i18nTitle);
+                $multimediaObject->setI18nTitle($this->i18nService->generateI18nText($recording->title()));
                 $multimediaObject->setRecordDate($recording->created());
-                $jobOptions = new JobOptions('master_copy', 2, 'en', [], []);
-                $this->jobCreator->fromPath($multimediaObject, $pathFile, $jobOptions);
                 $multimediaObject->setProperty('blackboard_recording', $recordingId);
-                $recording->markAsImported();
 
                 $role = $this->getOwnerRole();
                 foreach ($users as $user) {
-                    $multimediaObject->addPersonWithRole($user->getPerson(), $role);
+                    if (!$multimediaObject->containsPersonWithRole($user->getPerson(), $role)) {
+                        $this->personService->createRelationPerson($user->getPerson(), $role, $multimediaObject, false, false);
+                    }
                 }
 
+                $this->jobCreator->fromPath($multimediaObject, $pathFile, new JobOptions('master_copy', 2, 'en', [], []));
+                $jobCreated = true;
+                $recording->markAsImported();
                 $this->documentManager->flush();
                 ++$countImported;
                 $output->writeln(sprintf(' ---> [OK] Recording %s imported successfully.', $recordingId));
@@ -123,6 +138,9 @@ class ImportRecordingsCommand extends Command
                     $recordingId,
                     $e->getMessage()
                 ));
+                if (!$jobCreated) {
+                    $this->discard($multimediaObject, $pathFile, $output);
+                }
                 $this->documentManager->clear();
                 $cleared = true;
             }
@@ -146,16 +164,35 @@ class ImportRecordingsCommand extends Command
 
     private function isValidToImport(CollaborateRecording $recording): array
     {
-        $owners = $recording->owners();
         $users = [];
-        foreach ($owners as $key => $owner) {
-            $user = $this->documentManager->getRepository(User::class)->findOneBy(['email' => $key]);
-            if ($user) {
+        foreach (array_keys($recording->owners()) as $email) {
+            $user = $this->documentManager->getRepository(User::class)->findOneBy(['email' => $email]);
+            if ($user instanceof User && $user->getPerson() instanceof Person) {
                 $users[] = $user;
             }
         }
 
         return $users;
+    }
+
+    private function alreadyImported(string $recordingId): bool
+    {
+        return null !== $this->documentManager->getRepository(MultimediaObject::class)->findOneBy(['properties.blackboard_recording' => $recordingId]);
+    }
+
+    private function discard(?MultimediaObject $multimediaObject, ?Path $pathFile, OutputInterface $output): void
+    {
+        try {
+            if ($multimediaObject?->getId()) {
+                $this->factoryService->deleteMultimediaObject($multimediaObject);
+            }
+        } catch (\Throwable $e) {
+            $output->writeln(sprintf(' ---> [ERROR] Could not delete the incomplete multimedia object: %s', $e->getMessage()));
+        }
+
+        if ($pathFile && is_file($pathFile->path())) {
+            unlink($pathFile->path());
+        }
     }
 
     private function getRecordingsIterator(): iterable
@@ -275,6 +312,11 @@ class ImportRecordingsCommand extends Command
 
     private function getOwnerRole(): Role
     {
-        return $this->documentManager->getRepository(Role::class)->findOneBy(['cod' => 'owner']);
+        $role = $this->personService->getPersonalScopeRole();
+        if (!$role instanceof Role) {
+            throw new \RuntimeException('The owner role does not exist');
+        }
+
+        return $role;
     }
 }

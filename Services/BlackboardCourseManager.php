@@ -29,10 +29,7 @@ class BlackboardCourseManager
             $this->documentManager->persist($course);
         } else {
             $course->updateInfo($name);
-            if (
-                BlackboardCourse::STATUS_DONE === $course->status()
-                || BlackboardCourse::STATUS_PENDING_IMPORT === $course->status()
-            ) {
+            if (BlackboardCourse::STATUS_PENDING_RECORDINGS !== $course->status()) {
                 $course->markAsPendingRecordings();
             }
         }

@@ -60,7 +60,7 @@ class SyncMediaCommand extends Command
         $output->writeln('<info>STEP 1: Connecting to Blackboard Learn API</info>');
 
         try {
-            $learnToken = $this->learnAPIAuth->getToken();
+            $this->learnAPIAuth->getToken();
             $output->writeln('Connected.');
         } catch (\Exception $e) {
             $output->writeln('<error>ERROR: '.$e->getMessage().'</error>');
@@ -111,7 +111,7 @@ class SyncMediaCommand extends Command
             $output->writeln(sprintf('<info>[%d/%d] Course: %s (%s)</info>', $index + 1, $total, $course->name(), $course->collaborateId()));
 
             try {
-                $this->processCourse($course, $collaborateToken, $learnToken, $output);
+                $this->processCourse($course, $this->collaborateAPIAuth->getToken(), $this->learnAPIAuth->getToken(), $output);
             } catch (\Exception $e) {
                 $this->courseManager->markAsError($course, $e->getMessage());
                 $output->writeln('<error>ERROR: '.$e->getMessage().'</error>');
@@ -158,7 +158,7 @@ class SyncMediaCommand extends Command
                 continue;
             }
 
-            if (false === $element['publicLinkAllowed']) {
+            if (false === ($element['publicLinkAllowed'] ?? null)) {
                 $output->writeln('<comment> ---> publicLinkAllowed=false, skipping.</comment>');
 
                 continue;

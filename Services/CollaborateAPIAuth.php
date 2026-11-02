@@ -10,60 +10,45 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class CollaborateAPIAuth
 {
-    private $assertion;
-    private $grant_type;
-    private $payload;
-    private $header;
-    private $verify_cert = true;
+    private const GRANT_TYPE = 'urn:ietf:params:oauth:grant-type:jwt-bearer';
+
+    private ?AccessToken $token = null;
 
     public function __construct(
         private readonly HttpClientInterface $client,
         private readonly CollaborateAPIConfiguration $configuration,
-    ) {
-        $this->generateJWTPayload();
-    }
+    ) {}
 
     public function getToken(): string
     {
-        try {
-            $response = $this->client->request('POST', $this->configuration->apiTokenUrl(), [
-                'auth_basic' => [$this->configuration->key(), $this->configuration->secret()],
-                'body' => $this->payload,
-                'verify_peer' => $this->verify_cert,
-            ]);
-
-            if (Response::HTTP_OK !== $response->getStatusCode()) {
-                throw new \Exception('Unable to get collaborate token. Response status code: '.$response->getStatusCode());
-            }
-
-            $token = json_decode($response->getContent(), true);
-
-            return $token['access_token'];
-        } catch (\Exception $exception) {
-            throw new \Exception($exception->getMessage());
+        $now = time();
+        if ($this->token?->isValidAt($now)) {
+            return $this->token->value();
         }
+
+        $response = $this->client->request('POST', $this->configuration->apiTokenUrl(), [
+            'auth_basic' => [$this->configuration->key(), $this->configuration->secret()],
+            'body' => [
+                'grant_type' => self::GRANT_TYPE,
+                'assertion' => $this->assertion($now),
+            ],
+        ]);
+
+        if (Response::HTTP_OK !== $response->getStatusCode()) {
+            throw new \RuntimeException('Unable to get collaborate token. Response status code: '.$response->getStatusCode());
+        }
+
+        $this->token = AccessToken::fromResponse($response->toArray(), $now);
+
+        return $this->token->value();
     }
 
-    private function generateJWTPayload(): void
+    private function assertion(int $now): string
     {
-        $exp = (new \DateTimeImmutable('now'))->modify('+30 minutes')->getTimestamp();
-        $claims = [
+        return JWT::encode([
             'iss' => $this->configuration->key(),
             'sub' => $this->configuration->key(),
-            'exp' => $exp,
-        ];
-
-        $this->header = [
-            'alg' => 'HS256',
-            'typ' => 'JWT',
-        ];
-
-        $this->assertion = JWT::encode($claims, $this->configuration->secret(), 'HS256');
-        $this->grant_type = 'urn:ietf:params:oauth:grant-type:jwt-bearer';
-
-        $this->payload = [
-            'grant_type' => $this->grant_type,
-            'assertion' => $this->assertion,
-        ];
+            'exp' => $now + 30 * 60,
+        ], $this->configuration->secret(), 'HS256');
     }
 }

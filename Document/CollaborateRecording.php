@@ -8,6 +8,8 @@ use Doctrine\ODM\MongoDB\Mapping\Annotations as MongoDB;
 use MongoDB\BSON\ObjectId;
 
 #[MongoDB\Document(repositoryClass: 'Pumukit\BlackboardBundle\Repository\CollaborateRecordingRepository')]
+#[MongoDB\Index(keys: ['recording' => 'asc'], options: ['unique' => true])]
+#[MongoDB\Index(keys: ['imported' => 'asc'])]
 class CollaborateRecording
 {
     #[MongoDB\Id]
@@ -28,7 +30,7 @@ class CollaborateRecording
     #[MongoDB\Field(type: 'string')]
     private $sessionName;
 
-    #[MongoDB\Field(type: 'boolean')]
+    #[MongoDB\Field(type: 'bool')]
     private $imported;
 
     #[MongoDB\Field(type: 'string')]
