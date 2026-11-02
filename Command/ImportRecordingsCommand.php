@@ -45,6 +45,7 @@ class ImportRecordingsCommand extends Command
         private readonly CollaborateAPIAuth $collaborateAPIAuth,
         private readonly CollaborateAPIRecording $collaborateAPIRecording,
         private readonly string $tmpPath,
+        private readonly bool $isEnabled,
     ) {
         parent::__construct();
     }
@@ -63,6 +64,12 @@ class ImportRecordingsCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
+        if (!$this->isEnabled) {
+            $output->writeln('<comment>The Blackboard bundle is disabled (pumukit_blackboard.enable: false).</comment>');
+
+            return Command::FAILURE;
+        }
+
         $output->writeln('<info>Starting import of Blackboard recordings</info>');
 
         $this->fallbackFullDownload = $input->getOption('fallback-full-download');

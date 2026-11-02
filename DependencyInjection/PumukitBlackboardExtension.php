@@ -13,16 +13,12 @@ class PumukitBlackboardExtension extends Extension
 {
     public function load(array $configs, ContainerBuilder $container): void
     {
-        $configuration = new Configuration();
-        $config = $this->processConfiguration($configuration, $configs);
+        $config = $this->processConfiguration(new Configuration(), $configs);
 
-        $container->setParameter('pumukit_blackboard.learn_host', $config['learn_host']);
-        $container->setParameter('pumukit_blackboard.learn_key', $config['learn_key']);
-        $container->setParameter('pumukit_blackboard.learn_secret', $config['learn_secret']);
-
-        $container->setParameter('pumukit_blackboard.collaborate_host', $config['collaborate_host']);
-        $container->setParameter('pumukit_blackboard.collaborate_key', $config['collaborate_key']);
-        $container->setParameter('pumukit_blackboard.collaborate_secret', $config['collaborate_secret']);
+        $container->setParameter('pumukit_blackboard.enable', $config['enable']);
+        foreach (Configuration::CREDENTIALS as $key) {
+            $container->setParameter('pumukit_blackboard.'.$key, (string) $config[$key]);
+        }
 
         $loader = new Loader\YamlFileLoader($container, new FileLocator(__DIR__.'/../Resources/config'));
         $loader->load('pumukit_blackboard.yaml');

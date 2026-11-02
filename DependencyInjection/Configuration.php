@@ -9,40 +9,56 @@ use Symfony\Component\Config\Definition\ConfigurationInterface;
 
 class Configuration implements ConfigurationInterface
 {
+    public const CREDENTIALS = ['learn_host', 'learn_key', 'learn_secret', 'collaborate_host', 'collaborate_key', 'collaborate_secret'];
+
     public function getConfigTreeBuilder(): TreeBuilder
     {
         $treeBuilder = new TreeBuilder('pumukit_blackboard');
-        $rootNode = $treeBuilder->getRootNode();
 
-        $rootNode
+        $treeBuilder->getRootNode()
+            ->validate()
+            ->ifTrue(static fn (array $config): bool => $config['enable'] && [] !== self::missingCredentials($config))
+            ->then(static function (array $config): never {
+                throw new \InvalidArgumentException('pumukit_blackboard needs '.implode(', ', self::missingCredentials($config)).' when it is enabled');
+            })
+            ->end()
             ->children()
+            ->booleanNode('enable')
+            ->defaultTrue()
+            ->info('If false, the commands do nothing and the credentials are not required')
+            ->end()
             ->scalarNode('learn_host')
-            ->info('Host of blackboard learn.')
-            ->isRequired()
+            ->defaultNull()
+            ->info('Host of Blackboard Learn, with the scheme')
             ->end()
             ->scalarNode('learn_key')
-            ->info('Application key used to connect with blackboard')
-            ->isRequired()
+            ->defaultNull()
+            ->info('Application key of the Learn REST API')
             ->end()
             ->scalarNode('learn_secret')
-            ->info('Application secret used to connect with blackboard')
-            ->isRequired()
+            ->defaultNull()
+            ->info('Application secret of the Learn REST API')
             ->end()
             ->scalarNode('collaborate_host')
-            ->info('Host of blackboard collaborate')
-            ->isRequired()
+            ->defaultNull()
+            ->info('Host of the Collaborate REST API, with the scheme')
             ->end()
             ->scalarNode('collaborate_key')
-            ->info('API key used to connect with blackboard collaborate')
-            ->isRequired()
+            ->defaultNull()
+            ->info('Key of the Collaborate REST API')
             ->end()
             ->scalarNode('collaborate_secret')
-            ->info('API secret used to connect with blackboard collaborate')
-            ->isRequired()
+            ->defaultNull()
+            ->info('Secret of the Collaborate REST API, used to sign the JWT')
             ->end()
             ->end()
         ;
 
         return $treeBuilder;
+    }
+
+    private static function missingCredentials(array $config): array
+    {
+        return array_values(array_filter(self::CREDENTIALS, static fn (string $key): bool => '' === (string) ($config[$key] ?? '')));
     }
 }

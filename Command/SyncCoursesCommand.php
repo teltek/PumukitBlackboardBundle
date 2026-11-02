@@ -19,12 +19,19 @@ class SyncCoursesCommand extends Command
         private readonly LearnAPIAuth $learnAPIAuth,
         private readonly LearnAPICourse $learnAPICourse,
         private readonly BlackboardCourseManager $courseManager,
+        private readonly bool $isEnabled,
     ) {
         parent::__construct();
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
+        if (!$this->isEnabled) {
+            $output->writeln('<comment>The Blackboard bundle is disabled (pumukit_blackboard.enable: false).</comment>');
+
+            return Command::FAILURE;
+        }
+
         $output->writeln('<info>STEP 1: Connecting to Blackboard Learn API</info>');
 
         try {
