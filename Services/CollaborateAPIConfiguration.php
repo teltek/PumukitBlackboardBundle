@@ -1,20 +1,18 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Pumukit\BlackboardBundle\Services;
 
 class CollaborateAPIConfiguration
 {
     private const API_BASE_PATH = '';
-    private string $host;
-    private string $key;
-    private string $secret;
 
-    public function __construct(string $host, string $key, string $secret)
-    {
-        $this->host = $host;
-        $this->key = $key;
-        $this->secret = $secret;
-    }
+    public function __construct(
+        private readonly string $host,
+        private readonly string $key,
+        private readonly string $secret,
+    ) {}
 
     public function host(): string
     {

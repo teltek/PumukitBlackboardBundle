@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Pumukit\BlackboardBundle\Services;
 
 use Firebase\JWT\JWT;
@@ -8,18 +10,16 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class CollaborateAPIAuth
 {
-    private HttpClientInterface $client;
-    private CollaborateAPIConfiguration $configuration;
     private $assertion;
     private $grant_type;
     private $payload;
     private $header;
     private $verify_cert = true;
 
-    public function __construct(HttpClientInterface $client, CollaborateAPIConfiguration $configuration)
-    {
-        $this->client = $client;
-        $this->configuration = $configuration;
+    public function __construct(
+        private readonly HttpClientInterface $client,
+        private readonly CollaborateAPIConfiguration $configuration,
+    ) {
         $this->generateJWTPayload();
     }
 

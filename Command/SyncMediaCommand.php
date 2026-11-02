@@ -15,64 +15,44 @@ use Pumukit\BlackboardBundle\Services\CollaborateCreateRecording;
 use Pumukit\BlackboardBundle\Services\LearnAPIAuth;
 use Pumukit\BlackboardBundle\Services\LearnAPIUser;
 use Pumukit\BlackboardBundle\ValueObject\CollaborateRecording;
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
+#[AsCommand(name: 'pumukit:blackboard:sync-recordings', description: 'Fetches Collaborate recordings for pending courses and saves them in PuMuKIT.')]
 class SyncMediaCommand extends Command
 {
     private const DEFAULT_LIMIT = 50;
     private const SLEEP_MS = 200;
 
-    private LearnAPIAuth $learnAPIAuth;
-    private LearnAPIUser $learnAPIUser;
-    private CollaborateAPIAuth $collaborateAPIAuth;
-    private CollaborateAPICourseRecordings $collaborateAPICourseRecordings;
-    private CollaborateAPIRecording $collaborateAPIRecording;
-    private CollaborateCreateRecording $collaborateCreateRecording;
-    private CollaborateAPISessionSearch $collaborateAPISessionSearch;
-    private CollaborateAPIUser $collaborateAPIUser;
-    private BlackboardCourseManager $courseManager;
     private OutputInterface $output;
     private array $errors = [];
     private array $sessionsByName = [];
 
     public function __construct(
-        LearnAPIAuth $learnAPIAuth,
-        LearnAPIUser $learnAPIUser,
-        CollaborateAPIAuth $collaborateAPIAuth,
-        CollaborateAPICourseRecordings $collaborateAPICourseRecordings,
-        CollaborateAPIRecording $collaborateAPIRecording,
-        CollaborateCreateRecording $collaborateCreateRecording,
-        CollaborateAPISessionSearch $collaborateAPISessionSearch,
-        CollaborateAPIUser $collaborateAPIUser,
-        BlackboardCourseManager $courseManager,
-        ?string $name = null
+        private readonly LearnAPIAuth $learnAPIAuth,
+        private readonly LearnAPIUser $learnAPIUser,
+        private readonly CollaborateAPIAuth $collaborateAPIAuth,
+        private readonly CollaborateAPICourseRecordings $collaborateAPICourseRecordings,
+        private readonly CollaborateAPIRecording $collaborateAPIRecording,
+        private readonly CollaborateCreateRecording $collaborateCreateRecording,
+        private readonly CollaborateAPISessionSearch $collaborateAPISessionSearch,
+        private readonly CollaborateAPIUser $collaborateAPIUser,
+        private readonly BlackboardCourseManager $courseManager,
     ) {
-        $this->learnAPIAuth = $learnAPIAuth;
-        $this->learnAPIUser = $learnAPIUser;
-        $this->collaborateAPIAuth = $collaborateAPIAuth;
-        $this->collaborateAPICourseRecordings = $collaborateAPICourseRecordings;
-        $this->collaborateAPIRecording = $collaborateAPIRecording;
-        $this->collaborateCreateRecording = $collaborateCreateRecording;
-        $this->collaborateAPISessionSearch = $collaborateAPISessionSearch;
-        $this->collaborateAPIUser = $collaborateAPIUser;
-        $this->courseManager = $courseManager;
-
-        parent::__construct($name);
+        parent::__construct();
     }
 
-    public function configure(): void
+    protected function configure(): void
     {
         $this
-            ->setName('pumukit:blackboard:sync-recordings')
-            ->setDescription('Fetches Collaborate recordings for pending courses and saves them in PuMuKIT.')
             ->addOption('limit', 'l', InputOption::VALUE_OPTIONAL, 'Maximum number of courses to process.', self::DEFAULT_LIMIT)
         ;
     }
 
-    public function execute(InputInterface $input, OutputInterface $output): int
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $this->output = $output;
         $limit = (int) $input->getOption('limit');
@@ -99,7 +79,7 @@ class SyncMediaCommand extends Command
             return Command::FAILURE;
         }
 
-        $output->writeln(sprintf('<info>STEP 3: Loading Collaborate sessions...</info>', $limit));
+        $output->writeln('<info>STEP 3: Loading Collaborate sessions...</info>');
         $allSessions = $this->collaborateAPISessionSearch->searchSessions($collaborateToken);
 
         foreach ($allSessions['results'] as $session) {

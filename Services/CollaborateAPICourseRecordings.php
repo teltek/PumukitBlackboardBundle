@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Pumukit\BlackboardBundle\Services;
 
 use Symfony\Component\HttpFoundation\Response;
@@ -7,14 +9,10 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class CollaborateAPICourseRecordings
 {
-    private HttpClientInterface $client;
-    private CollaborateAPIConfiguration $configuration;
-
-    public function __construct(HttpClientInterface $client, CollaborateAPIConfiguration $configuration)
-    {
-        $this->client = $client;
-        $this->configuration = $configuration;
-    }
+    public function __construct(
+        private readonly HttpClientInterface $client,
+        private readonly CollaborateAPIConfiguration $configuration,
+    ) {}
 
     public function getCourseRecordings(string $accessToken, string $courseId): array
     {

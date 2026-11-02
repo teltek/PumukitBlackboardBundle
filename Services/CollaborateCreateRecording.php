@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Pumukit\BlackboardBundle\Services;
 
 use Doctrine\ODM\MongoDB\DocumentManager;
@@ -7,12 +9,9 @@ use Pumukit\BlackboardBundle\ValueObject\CollaborateRecording;
 
 class CollaborateCreateRecording
 {
-    private DocumentManager $documentManager;
-
-    public function __construct(DocumentManager $documentManager)
-    {
-        $this->documentManager = $documentManager;
-    }
+    public function __construct(
+        private readonly DocumentManager $documentManager,
+    ) {}
 
     public function create(CollaborateRecording $collaborateRecording): ?\Pumukit\BlackboardBundle\Document\CollaborateRecording
     {

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Pumukit\BlackboardBundle\Command;
 
 use Doctrine\ODM\MongoDB\DocumentManager;
@@ -15,6 +17,7 @@ use Pumukit\SchemaBundle\Document\User;
 use Pumukit\SchemaBundle\Document\ValueObject\Path;
 use Pumukit\SchemaBundle\Services\FactoryService;
 use Pumukit\SchemaBundle\Services\UserService;
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -23,52 +26,30 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Symfony\Contracts\HttpClient\ResponseInterface;
 
+#[AsCommand(name: 'pumukit:blackboard:import:recordings', description: 'This command import blackboard collaborate recordings on PuMuKIT')]
 class ImportRecordingsCommand extends Command
 {
     private const BATCH_SIZE = 10;
 
     private bool $fallbackFullDownload = false;
 
-    private DocumentManager $documentManager;
-    private HttpClientInterface $httpClient;
-    private FactoryService $factoryService;
-    private JobCreator $jobCreator;
-    private i18nService $i18nService;
-    private UserService $userService;
-    private CollaborateAPIAuth $collaborateAPIAuth;
-    private CollaborateAPIRecording $collaborateAPIRecording;
-    private $tmpPath;
-
     public function __construct(
-        DocumentManager $documentManager,
-        HttpClientInterface $httpClient,
-        FactoryService $factoryService,
-        JobCreator $jobCreator,
-        i18nService $i18nService,
-        UserService $userService,
-        CollaborateAPIAuth $collaborateAPIAuth,
-        CollaborateAPIRecording $collaborateAPIRecording,
-        string $tmpPath,
-        ?string $name = null
+        private readonly DocumentManager $documentManager,
+        private readonly HttpClientInterface $httpClient,
+        private readonly FactoryService $factoryService,
+        private readonly JobCreator $jobCreator,
+        private readonly i18nService $i18nService,
+        private readonly UserService $userService,
+        private readonly CollaborateAPIAuth $collaborateAPIAuth,
+        private readonly CollaborateAPIRecording $collaborateAPIRecording,
+        private readonly string $tmpPath,
     ) {
-        $this->documentManager = $documentManager;
-        $this->httpClient = $httpClient;
-        $this->factoryService = $factoryService;
-        $this->jobCreator = $jobCreator;
-        $this->i18nService = $i18nService;
-        $this->userService = $userService;
-        $this->collaborateAPIAuth = $collaborateAPIAuth;
-        $this->collaborateAPIRecording = $collaborateAPIRecording;
-        $this->tmpPath = $tmpPath;
-
-        parent::__construct($name);
+        parent::__construct();
     }
 
-    public function configure(): void
+    protected function configure(): void
     {
         $this
-            ->setName('pumukit:blackboard:import:recordings')
-            ->setDescription('This command import blackboard collaborate recordings on PuMuKIT')
             ->addOption(
                 'fallback-full-download',
                 null,
@@ -78,7 +59,7 @@ class ImportRecordingsCommand extends Command
         ;
     }
 
-    public function execute(InputInterface $input, OutputInterface $output): int
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $output->writeln('<info>Starting import of Blackboard recordings</info>');
 

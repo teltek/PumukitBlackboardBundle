@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Pumukit\BlackboardBundle\Services;
 
 use Symfony\Component\HttpFoundation\Response;
@@ -7,14 +9,10 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class LearnAPICourse
 {
-    private HttpClientInterface $client;
-    private LearnAPIConfiguration $configuration;
-
-    public function __construct(HttpClientInterface $client, LearnAPIConfiguration $configuration)
-    {
-        $this->client = $client;
-        $this->configuration = $configuration;
-    }
+    public function __construct(
+        private readonly HttpClientInterface $client,
+        private readonly LearnAPIConfiguration $configuration,
+    ) {}
 
     public function getCourses(string $accessToken): array
     {

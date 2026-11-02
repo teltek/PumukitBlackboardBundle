@@ -7,38 +7,23 @@ namespace Pumukit\BlackboardBundle\Command;
 use Pumukit\BlackboardBundle\Services\BlackboardCourseManager;
 use Pumukit\BlackboardBundle\Services\LearnAPIAuth;
 use Pumukit\BlackboardBundle\Services\LearnAPICourse;
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
+#[AsCommand(name: 'pumukit:blackboard:sync-courses', description: 'Fetches all courses from Blackboard Learn and persists them in MongoDB.')]
 class SyncCoursesCommand extends Command
 {
-    private LearnAPIAuth $learnAPIAuth;
-    private LearnAPICourse $learnAPICourse;
-    private BlackboardCourseManager $courseManager;
-
     public function __construct(
-        LearnAPIAuth $learnAPIAuth,
-        LearnAPICourse $learnAPICourse,
-        BlackboardCourseManager $courseManager,
-        ?string $name = null
+        private readonly LearnAPIAuth $learnAPIAuth,
+        private readonly LearnAPICourse $learnAPICourse,
+        private readonly BlackboardCourseManager $courseManager,
     ) {
-        $this->learnAPIAuth = $learnAPIAuth;
-        $this->learnAPICourse = $learnAPICourse;
-        $this->courseManager = $courseManager;
-
-        parent::__construct($name);
+        parent::__construct();
     }
 
-    public function configure(): void
-    {
-        $this
-            ->setName('pumukit:blackboard:sync-courses')
-            ->setDescription('Fetches all courses from Blackboard Learn and persists them in MongoDB.')
-        ;
-    }
-
-    public function execute(InputInterface $input, OutputInterface $output): int
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $output->writeln('<info>STEP 1: Connecting to Blackboard Learn API</info>');
 
