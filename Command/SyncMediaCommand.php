@@ -41,7 +41,6 @@ class SyncMediaCommand extends Command
         private readonly CollaborateAPISessionSearch $collaborateAPISessionSearch,
         private readonly CollaborateAPIUser $collaborateAPIUser,
         private readonly BlackboardCourseManager $courseManager,
-        private readonly bool $isEnabled,
     ) {
         parent::__construct();
     }
@@ -55,12 +54,6 @@ class SyncMediaCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        if (!$this->isEnabled) {
-            $output->writeln('<comment>The Blackboard bundle is disabled (pumukit_blackboard.enable: false).</comment>');
-
-            return Command::FAILURE;
-        }
-
         $this->output = $output;
         $limit = (int) $input->getOption('limit');
 

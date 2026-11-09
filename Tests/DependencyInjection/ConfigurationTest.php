@@ -5,15 +5,9 @@ declare(strict_types=1);
 namespace Pumukit\BlackboardBundle\Tests\DependencyInjection;
 
 use PHPUnit\Framework\TestCase;
-use Pumukit\BlackboardBundle\Command\SyncCoursesCommand;
 use Pumukit\BlackboardBundle\DependencyInjection\Configuration;
-use Pumukit\BlackboardBundle\Services\BlackboardCourseManager;
-use Pumukit\BlackboardBundle\Services\LearnAPIAuth;
-use Pumukit\BlackboardBundle\Services\LearnAPICourse;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\Config\Definition\Processor;
-use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Tester\CommandTester;
 
 /**
  * @internal
@@ -47,20 +41,6 @@ class ConfigurationTest extends TestCase
     public function testTheDisabledBundleNeedsNoCredentials(): void
     {
         $this->assertFalse($this->process(['enable' => false])['enable']);
-    }
-
-    public function testTheCommandsDoNothingWhenTheBundleIsDisabled(): void
-    {
-        $command = new SyncCoursesCommand(
-            $this->createStub(LearnAPIAuth::class),
-            $this->createStub(LearnAPICourse::class),
-            $this->createStub(BlackboardCourseManager::class),
-            false,
-        );
-        $tester = new CommandTester($command);
-
-        $this->assertSame(Command::FAILURE, $tester->execute([]));
-        $this->assertStringContainsString('disabled', $tester->getDisplay());
     }
 
     private function process(array $config): array

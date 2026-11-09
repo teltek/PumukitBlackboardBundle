@@ -20,6 +20,10 @@ class PumukitBlackboardExtension extends Extension
             $container->setParameter('pumukit_blackboard.'.$key, (string) $config[$key]);
         }
 
+        if (!$config['enable']) {
+            return;
+        }
+
         $loader = new Loader\YamlFileLoader($container, new FileLocator(__DIR__.'/../Resources/config'));
         $loader->load('pumukit_blackboard.yaml');
     }

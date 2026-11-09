@@ -5,7 +5,6 @@ services:
     public:        true
     bind:
       $tmpPath: '%pumukit.tmp%'
-      $isEnabled: '%pumukit_blackboard.enable%'
 
   Pumukit\BlackboardBundle\Command\:
     resource: '../../Command'

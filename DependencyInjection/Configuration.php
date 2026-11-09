@@ -25,7 +25,7 @@ class Configuration implements ConfigurationInterface
             ->children()
             ->booleanNode('enable')
             ->defaultTrue()
-            ->info('If false, the commands do nothing and the credentials are not required')
+            ->info('If false, nothing of the bundle is loaded (no commands nor services) and the credentials are not required')
             ->end()
             ->scalarNode('learn_host')
             ->defaultNull()

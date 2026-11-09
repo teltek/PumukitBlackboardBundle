@@ -38,7 +38,7 @@ pumukit_blackboard:
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `enable` | `true` | If false, the commands do nothing and the credentials are not required |
+| `enable` | `true` | If false, nothing of the bundle is loaded (no commands nor services) and the credentials are not required |
 | `learn_host`, `learn_key`, `learn_secret` | (required if enabled) | Host and application of the Learn REST API |
 | `collaborate_host`, `collaborate_key`, `collaborate_secret` | (required if enabled) | Host, key and secret of the Collaborate REST API |
 
@@ -137,7 +137,7 @@ Downloads and ingests into PuMuKIT all recordings with `imported=false`. Require
 
 - The commands are `pumukit:blackboard:sync-courses`, `pumukit:blackboard:sync-recordings` and
   `pumukit:blackboard:import:recordings`: crontabs with `pumukit:blackboard:sync` must be updated.
-- New `enable` option. The credentials are only required when it is true.
+- New `enable` option: if false, nothing of the bundle is loaded (no commands nor services). The credentials are only required when it is true.
 - Run `doctrine:mongodb:schema:update` to create the new indexes. The `recording` index is unique: if the
   `CollaborateRecording` collection has duplicated recordings, remove them first.
 - The courses in `error` are queued again on the next `sync-courses`.

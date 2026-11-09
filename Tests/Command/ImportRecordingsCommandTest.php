@@ -146,7 +146,6 @@ class ImportRecordingsCommandTest extends PumukitTestCase
             new CollaborateAPIAuth($client, $configuration),
             new CollaborateAPIRecording($client, $configuration),
             $this->tmpPath,
-            true,
         ));
     }
 
