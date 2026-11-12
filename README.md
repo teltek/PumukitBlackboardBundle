@@ -39,8 +39,10 @@ pumukit_blackboard:
 | Option | Default | Description |
 |--------|---------|-------------|
 | `enable` | `true` | If false, nothing of the bundle is loaded (no commands nor services) and the credentials are not required |
-| `learn_host`, `learn_key`, `learn_secret` | (required if enabled) | Host and application of the Learn REST API |
-| `collaborate_host`, `collaborate_key`, `collaborate_secret` | (required if enabled) | Host, key and secret of the Collaborate REST API |
+| `learn_host` | (required if enabled) | URL of Blackboard Learn, with the scheme; the bundle adds `/learn/api/public` to it |
+| `learn_key`, `learn_secret` | (required if enabled) | Application key and secret of the Learn REST API |
+| `collaborate_host` | (required if enabled) | Base URL of the Collaborate REST API, with the scheme; the bundle adds `/token`, `/sessions` and `/recordings` to it |
+| `collaborate_key`, `collaborate_secret` | (required if enabled) | Key and secret of the Collaborate REST API; the secret also signs the JWT sent to get the token |
 
 The access tokens of both APIs are renewed when they expire, so long runs do not fail halfway.
 
