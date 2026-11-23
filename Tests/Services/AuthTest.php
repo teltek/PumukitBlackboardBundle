@@ -25,8 +25,7 @@ class AuthTest extends TestCase
         $client = $this->client(3600, $requests);
         $auth = new CollaborateAPIAuth($client, new CollaborateAPIConfiguration('https://collab.example.org', 'key', 'a-secret-long-enough-for-hs256-signatures'));
 
-        $this->assertSame('token-1', $auth->getToken());
-        $this->assertSame('token-1', $auth->getToken());
+        $this->assertSame(['token-1', 'token-1'], [$auth->getToken(), $auth->getToken()]);
         $this->assertSame(1, $requests);
     }
 

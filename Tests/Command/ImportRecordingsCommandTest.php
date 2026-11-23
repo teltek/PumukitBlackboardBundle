@@ -85,7 +85,7 @@ class ImportRecordingsCommandTest extends PumukitTestCase
         $this->assertSame(Command::FAILURE, $this->tester()->execute([]));
 
         $this->dm->clear();
-        $this->assertSame(0, $this->dm->getRepository(MultimediaObject::class)->count(['properties.blackboard_recording' => 'rec-2']));
+        $this->assertSame(0, $this->dm->getRepository(MultimediaObject::class)->createStandardQueryBuilder()->field('properties.blackboard_recording')->equals('rec-2')->count()->getQuery()->execute());
         $this->assertFalse($this->dm->getRepository(CollaborateRecording::class)->findOneBy(['recording' => 'rec-2'])->imported());
         $this->assertSame([], glob($this->tmpPath.'/*'));
     }
@@ -103,7 +103,7 @@ class ImportRecordingsCommandTest extends PumukitTestCase
         $this->assertSame(Command::SUCCESS, $tester->execute([]));
 
         $this->assertStringContainsString('Skipping', $tester->getDisplay());
-        $this->assertSame(0, $this->dm->getRepository(MultimediaObject::class)->count(['properties.blackboard_recording' => 'rec-3']));
+        $this->assertSame(0, $this->dm->getRepository(MultimediaObject::class)->createStandardQueryBuilder()->field('properties.blackboard_recording')->equals('rec-3')->count()->getQuery()->execute());
     }
 
     public function testARecordingAlreadyInPumukitIsOnlyMarkedAsImported(): void
@@ -117,7 +117,7 @@ class ImportRecordingsCommandTest extends PumukitTestCase
         $this->assertSame(Command::SUCCESS, $this->tester()->execute([]));
 
         $this->dm->clear();
-        $this->assertSame(1, $this->dm->getRepository(MultimediaObject::class)->count(['properties.blackboard_recording' => 'rec-4']));
+        $this->assertSame(1, $this->dm->getRepository(MultimediaObject::class)->createStandardQueryBuilder()->field('properties.blackboard_recording')->equals('rec-4')->count()->getQuery()->execute());
         $this->assertTrue($this->dm->getRepository(CollaborateRecording::class)->findOneBy(['recording' => 'rec-4'])->imported());
     }
 

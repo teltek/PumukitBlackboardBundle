@@ -52,7 +52,7 @@ class CollaborateAPISessionSearch
         return json_decode($sessionResponse, true);
     }
 
-    private function session(string $accessToken, int $offset = 0, int $limit = 10000): ?string
+    private function session(string $accessToken, int $offset = 0, int $limit = 10000): string
     {
         try {
             $response = $this->client->request(
@@ -82,7 +82,7 @@ class CollaborateAPISessionSearch
         }
     }
 
-    private function sessionById(string $accessToken, string $sesionId): ?string
+    private function sessionById(string $accessToken, string $sesionId): string
     {
         try {
             $response = $this->client->request('GET', $this->configuration->sessionDataUrl().'/'.$sesionId.'/enrollments', [

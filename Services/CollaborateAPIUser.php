@@ -21,7 +21,7 @@ class CollaborateAPIUser
         return json_decode($sessionResponse, true);
     }
 
-    private function user(string $accessToken, string $userId): ?string
+    private function user(string $accessToken, string $userId): string
     {
         try {
             $response = $this->client->request('GET', $this->configuration->userUrl().'/'.$userId, [

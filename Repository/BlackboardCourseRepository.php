@@ -21,7 +21,6 @@ class BlackboardCourseRepository extends DocumentRepository
             ->sort('lastRecordingsCheckAt', 'asc')
             ->limit($limit)
             ->getQuery()
-            ->execute()
             ->toArray()
         ;
     }
